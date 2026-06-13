@@ -1,0 +1,23 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #F7F5F0;
+  color: #1C1C1A;
+}
+:root {
+  --green: #0F6E56;
+  --green2: #1D9E75;
+  --green3: #E8F7F1;
+  --teal: #5DCAA5;
+  --dark: #1C1C1A;
+  --dark2: #2C2C2A;
+  --text2: #5F5E5A;
+  --text3: #A8A8A2;
+  --border: #E2E0D8;
+  --amber: #EF9F27;
+  --amber2: #FAEEDA;
+  --red: #E24B4A;
+  --bg: #F7F5F0;
+  --bg2: #F0EDE6;
+}
+input, select, textarea, button { font-family: inherit; }

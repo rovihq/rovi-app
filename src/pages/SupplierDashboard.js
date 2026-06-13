@@ -1,0 +1,375 @@
+import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
+
+const COLORS = {
+  green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
+  dark2: '#2C2C2A', bg: '#F7F5F0', bg2: '#F0EDE6',
+  border: '#E2E0D8', text2: '#5F5E5A', text3: '#A8A8A2',
+  amber: '#EF9F27', amber2: '#FAEEDA', red: '#E24B4A',
+  green3: '#E8F7F1', blue2: '#E6F1FB'
+}
+
+const Badge = ({ status }) => {
+  const colors = {
+    New: { bg: '#E8F7F1', color: '#085041' },
+    Processing: { bg: '#FAEEDA', color: '#633806' },
+    Shipped: { bg: '#E6F1FB', color: '#0C447C' },
+    Delivered: { bg: '#E8E8E8', color: '#5F5E5A' },
+  }
+  const c = colors[status] || colors.New
+  return (
+    <span style={{ background: c.bg, color: c.color, fontSize: '10px', fontWeight: '500', padding: '3px 8px', borderRadius: '20px' }}>
+      {status}
+    </span>
+  )
+}
+
+const StockBar = ({ quantity }) => {
+  const pct = Math.min((quantity / 400) * 100, 100)
+  const color = pct > 50 ? '#1D9E75' : pct > 20 ? '#EF9F27' : '#E24B4A'
+  return (
+    <div style={{ width: '80px', height: '5px', background: '#E2E0D8', borderRadius: '3px', overflow: 'hidden' }}>
+      <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '3px' }} />
+    </div>
+  )
+}
+
+export default function SupplierDashboard() {
+  const { profile, signOut } = useAuth()
+  const [activeSection, setActiveSection] = useState('overview')
+  const [products, setProducts] = useState([])
+  const [orders, setOrders] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [showNotif, setShowNotif] = useState(false)
+  const [showAddProduct, setShowAddProduct] = useState(false)
+  const [newProduct, setNewProduct] = useState({ name: '', category: 'GLP-1', description: '', price_per_unit: '', stock_quantity: '' })
+  const [orderFilter, setOrderFilter] = useState('All')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { 
+  if (profile?.id) fetchAll() 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [profile?.id])
+
+  const fetchAll = async () => {
+    if (!profile?.id) return
+    const [p, o, n] = await Promise.all([
+      supabase.from('products').select('*').eq('supplier_id', profile.id).order('created_at', { ascending: false }),
+      supabase.from('orders').select('*, product:products(name,category), doctor:profiles!orders_doctor_id_fkey(full_name,company_name)').eq('supplier_id', profile.id).order('order_date', { ascending: false }),
+      supabase.from('notifications').select('*').eq('recipient_id', profile.id).order('created_at', { ascending: false })
+    ])
+    setProducts(p.data || [])
+    setOrders(o.data || [])
+    setNotifications(n.data || [])
+    setLoading(false)
+  }
+
+  const addProduct = async () => {
+    if (!newProduct.name || !newProduct.price_per_unit) return
+    await supabase.from('products').insert({ ...newProduct, supplier_id: profile.id, price_per_unit: parseFloat(newProduct.price_per_unit), stock_quantity: parseInt(newProduct.stock_quantity) || 0 })
+    setShowAddProduct(false)
+    setNewProduct({ name: '', category: 'GLP-1', description: '', price_per_unit: '', stock_quantity: '' })
+    fetchAll()
+  }
+
+  const updateOrderStatus = async (orderId, status) => {
+    await supabase.from('orders').update({ status }).eq('id', orderId)
+    fetchAll()
+  }
+
+  const markAllRead = async () => {
+    await supabase.from('notifications').update({ is_read: true }).eq('recipient_id', profile.id)
+    fetchAll()
+  }
+
+  const mtdOrders = orders.filter(o => new Date(o.order_date) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const mtdRevenue = mtdOrders.reduce((sum, o) => sum + Number(o.total_price), 0)
+  const unreadCount = notifications.filter(n => !n.is_read).length
+  const filteredOrders = orderFilter === 'All' ? orders : orders.filter(o => o.status === orderFilter)
+
+  const sidebarItems = [
+    { id: 'overview', label: 'Overview', icon: '⊞' },
+    { id: 'orders', label: 'Orders', icon: '≡', badge: orders.filter(o => o.status === 'New').length },
+    { id: 'catalog', label: 'Catalog', icon: '+' },
+    { id: 'insights', label: 'Demand Insights', icon: '↗' },
+  ]
+
+  const inputStyle = { width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', marginBottom: '10px', outline: 'none', background: 'white' }
+
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: COLORS.green, fontSize: '18px' }}>Loading...</div>
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: COLORS.bg2, fontFamily: 'DM Sans, sans-serif' }}>
+
+      {/* SIDEBAR */}
+      <div style={{ width: '220px', background: 'white', borderRight: `0.5px solid ${COLORS.border}`, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
+        <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.border}`, fontSize: '20px', fontWeight: '700', color: COLORS.dark }}>
+          Rovi<span style={{ color: COLORS.green }}>.</span>
+        </div>
+        <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${COLORS.border}` }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: COLORS.green3, color: COLORS.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', marginBottom: '6px' }}>
+            {profile?.company_name?.charAt(0) || 'S'}
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{profile?.company_name}</div>
+          <div style={{ fontSize: '11px', color: COLORS.text3 }}>Supplier account</div>
+        </div>
+        <div style={{ padding: '12px 10px', flex: 1 }}>
+          <div style={{ fontSize: '10px', fontWeight: '500', color: COLORS.text3, letterSpacing: '1px', textTransform: 'uppercase', padding: '8px 8px 4px' }}>Main</div>
+          {sidebarItems.map(item => (
+            <div key={item.id} onClick={() => setActiveSection(item.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '7px', cursor: 'pointer', marginBottom: '2px', background: activeSection === item.id ? COLORS.green3 : 'transparent', color: activeSection === item.id ? COLORS.green : COLORS.text2, fontSize: '13px', fontWeight: activeSection === item.id ? '500' : '400' }}>
+              <span>{item.icon}</span>
+              {item.label}
+              {item.badge > 0 && <span style={{ marginLeft: 'auto', background: COLORS.amber2, color: COLORS.amber, fontSize: '10px', fontWeight: '600', padding: '1px 6px', borderRadius: '20px' }}>{item.badge}</span>}
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '16px 18px', borderTop: `0.5px solid ${COLORS.border}` }}>
+          <button onClick={signOut} style={{ width: '100%', padding: '9px', background: 'transparent', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', color: COLORS.text2, fontSize: '13px', cursor: 'pointer' }}>Sign out</button>
+        </div>
+      </div>
+
+      {/* MAIN */}
+      <div style={{ marginLeft: '220px', flex: 1, padding: '24px' }}>
+
+        {/* TOPBAR */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
+          <div>
+            <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>
+              {activeSection === 'overview' && `Good morning, ${profile?.company_name}`}
+              {activeSection === 'orders' && 'Orders'}
+              {activeSection === 'catalog' && 'Product Catalog'}
+              {activeSection === 'insights' && 'Demand Insights'}
+            </div>
+            <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>
+              {orders.filter(o => o.status === 'New').length} orders need attention
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button onClick={() => setShowNotif(!showNotif)} style={{ position: 'relative', padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer' }}>
+              🔔 Alerts {unreadCount > 0 && <span style={{ background: COLORS.amber, color: COLORS.dark, fontSize: '9px', fontWeight: '600', padding: '1px 5px', borderRadius: '10px', marginLeft: '4px' }}>{unreadCount}</span>}
+            </button>
+            {activeSection === 'catalog' && (
+              <button onClick={() => setShowAddProduct(true)} style={{ padding: '8px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>+ Add product</button>
+            )}
+          </div>
+        </div>
+
+        {/* NOTIFICATIONS PANEL */}
+        {showNotif && (
+          <div style={{ position: 'fixed', top: '60px', right: '24px', width: '320px', background: COLORS.dark, border: `0.5px solid ${COLORS.dark2}`, borderRadius: '12px', zIndex: 500, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+            <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${COLORS.dark2}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', fontWeight: '500', color: '#F0EDE6' }}>Notifications</span>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <span onClick={markAllRead} style={{ fontSize: '11px', color: COLORS.teal, cursor: 'pointer' }}>Mark all read</span>
+                <span onClick={() => setShowNotif(false)} style={{ color: '#5F5E5A', cursor: 'pointer' }}>×</span>
+              </div>
+            </div>
+            {notifications.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#5F5E5A', fontSize: '13px' }}>No notifications</div>
+            ) : notifications.map(n => (
+              <div key={n.id} style={{ padding: '12px 16px', borderBottom: `0.5px solid ${COLORS.dark2}`, background: n.is_read ? 'transparent' : '#1E1E1C' }}>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: n.type === 'low_stock' ? COLORS.red : n.type === 'new_order' ? COLORS.teal : COLORS.amber, marginTop: '4px', flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#F0EDE6', marginBottom: '2px' }}>{n.message}</div>
+                    <div style={{ fontSize: '11px', color: '#5F5E5A' }}>{new Date(n.created_at).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* OVERVIEW */}
+        {activeSection === 'overview' && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
+              {[
+                { label: 'Orders this month', value: mtdOrders.length, delta: '+18% vs last month', color: COLORS.green },
+                { label: 'Revenue (MTD)', value: `$${mtdRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, delta: 'This month', color: COLORS.green },
+                { label: 'Active products', value: products.filter(p => p.is_active).length, delta: 'In catalog', color: COLORS.green },
+                { label: 'Total orders', value: orders.length, delta: 'All time', color: COLORS.green },
+              ].map((m, i) => (
+                <div key={i} style={{ background: 'white', borderRadius: '9px', padding: '15px', border: `0.5px solid ${COLORS.border}` }}>
+                  <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
+                  <div style={{ fontSize: '24px', fontWeight: '500', color: COLORS.dark, lineHeight: 1 }}>{m.value}</div>
+                  <div style={{ fontSize: '11px', color: m.color, marginTop: '4px' }}>{m.delta}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              {/* Recent orders */}
+              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '500' }}>Recent orders</span>
+                  <span onClick={() => setActiveSection('orders')} style={{ fontSize: '12px', color: COLORS.green, cursor: 'pointer', fontWeight: '500' }}>View all →</span>
+                </div>
+                {orders.slice(0, 5).map(o => (
+                  <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: o.status === 'New' ? COLORS.green : o.status === 'Processing' ? COLORS.amber : '#378ADD', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.doctor?.company_name || o.doctor?.full_name}</div>
+                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>{o.product?.name}</div>
+                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: '500' }}>${Number(o.total_price).toFixed(2)}</div>
+                    <Badge status={o.status} />
+                  </div>
+                ))}
+                {orders.length === 0 && <div style={{ color: COLORS.text3, fontSize: '13px', textAlign: 'center', padding: '20px' }}>No orders yet</div>}
+              </div>
+
+              {/* Catalog */}
+              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '500' }}>Catalog inventory</span>
+                  <span onClick={() => setActiveSection('catalog')} style={{ fontSize: '12px', color: COLORS.green, cursor: 'pointer', fontWeight: '500' }}>Manage →</span>
+                </div>
+                {products.map(p => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.dark }}>{p.name}</div>
+                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>{p.stock_quantity} units</div>
+                    </div>
+                    <StockBar quantity={p.stock_quantity} />
+                  </div>
+                ))}
+                {products.length === 0 && <div style={{ color: COLORS.text3, fontSize: '13px', textAlign: 'center', padding: '20px' }}>No products yet</div>}
+              </div>
+            </div>
+
+            {/* AI Alerts */}
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '500' }}>AI demand alerts</span>
+              </div>
+              {products.filter(p => p.stock_quantity < 50).map(p => (
+                <div key={p.id} style={{ display: 'flex', gap: '10px', padding: '10px 12px', background: p.stock_quantity < 20 ? '#FCEBEB' : COLORS.amber2, borderRadius: '8px', marginBottom: '6px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: p.stock_quantity < 20 ? COLORS.red : COLORS.amber, marginTop: '5px', flexShrink: 0 }} />
+                  <div style={{ fontSize: '12px', color: p.stock_quantity < 20 ? '#791F1F' : '#633806' }}>
+                    <strong>{p.name}</strong> is {p.stock_quantity < 20 ? 'critically' : 'running'} low ({p.stock_quantity} units remaining). Consider restocking soon.
+                  </div>
+                </div>
+              ))}
+              {products.filter(p => p.stock_quantity < 50).length === 0 && (
+                <div style={{ padding: '10px 12px', background: COLORS.green3, borderRadius: '8px', fontSize: '12px', color: '#085041' }}>✓ All products are well stocked</div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ORDERS */}
+        {activeSection === 'orders' && (
+          <>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              {['All', 'New', 'Processing', 'Shipped', 'Delivered'].map(f => (
+                <button key={f} onClick={() => setOrderFilter(f)}
+                  style={{ padding: '6px 14px', borderRadius: '20px', border: `0.5px solid ${COLORS.border}`, background: orderFilter === f ? COLORS.dark : 'white', color: orderFilter === f ? 'white' : COLORS.text2, fontSize: '12px', cursor: 'pointer' }}>
+                  {f}
+                </button>
+              ))}
+            </div>
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
+              {filteredOrders.length === 0 ? (
+                <div style={{ textAlign: 'center', color: COLORS.text3, padding: '40px', fontSize: '14px' }}>No orders found</div>
+              ) : filteredOrders.map(o => (
+                <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{o.doctor?.company_name || o.doctor?.full_name}</div>
+                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>{o.product?.name} · Qty: {o.quantity} · {new Date(o.order_date).toLocaleDateString()}</div>
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: '500' }}>${Number(o.total_price).toFixed(2)}</div>
+                  <select value={o.status} onChange={e => updateOrderStatus(o.id, e.target.value)}
+                    style={{ padding: '5px 8px', border: `0.5px solid ${COLORS.border}`, borderRadius: '6px', fontSize: '12px', cursor: 'pointer', background: 'white' }}>
+                    {['New', 'Processing', 'Shipped', 'Delivered'].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* CATALOG */}
+        {activeSection === 'catalog' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
+            {products.map(p => (
+              <div key={p.id} style={{ background: 'white', border: `0.5px solid ${p.stock_quantity < 20 ? COLORS.red : COLORS.border}`, borderRadius: '10px', padding: '20px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark, marginBottom: '4px' }}>{p.name}</div>
+                <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '10px' }}>{p.category} · ${Number(p.price_per_unit).toFixed(2)}/unit</div>
+                <StockBar quantity={p.stock_quantity} />
+                <div style={{ fontSize: '11px', color: p.stock_quantity < 20 ? COLORS.red : COLORS.text3, marginTop: '5px', marginBottom: '12px' }}>
+                  {p.stock_quantity} units {p.stock_quantity < 20 ? '— CRITICAL' : p.stock_quantity < 50 ? '— Low' : ''}
+                </div>
+                <div style={{ fontSize: '12px', color: COLORS.text2, lineHeight: '1.5', marginBottom: '12px' }}>{p.description}</div>
+              </div>
+            ))}
+            {products.length === 0 && (
+              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: COLORS.text3 }}>
+                No products yet. Click "+ Add product" to add your first product.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* INSIGHTS */}
+        {activeSection === 'insights' && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
+              {[
+                { label: 'Total orders', value: orders.length },
+                { label: 'Total revenue', value: `$${orders.reduce((s, o) => s + Number(o.total_price), 0).toFixed(2)}` },
+                { label: 'Products', value: products.length },
+                { label: 'Low stock items', value: products.filter(p => p.stock_quantity < 50).length },
+              ].map((m, i) => (
+                <div key={i} style={{ background: 'white', borderRadius: '9px', padding: '15px', border: `0.5px solid ${COLORS.border}` }}>
+                  <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
+                  <div style={{ fontSize: '24px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>Product performance</div>
+              {products.map(p => {
+                const productOrders = orders.filter(o => o.product_id === p.id)
+                const revenue = productOrders.reduce((s, o) => s + Number(o.total_price), 0)
+                return (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{p.name}</div>
+                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>{productOrders.length} orders · ${revenue.toFixed(2)} revenue</div>
+                    </div>
+                    <StockBar quantity={p.stock_quantity} />
+                    <div style={{ fontSize: '12px', color: COLORS.text3, minWidth: '60px', textAlign: 'right' }}>{p.stock_quantity} left</div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ADD PRODUCT MODAL */}
+      {showAddProduct && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
+          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
+            <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '6px' }}>Add new product</div>
+            <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>This will appear in your catalog and be visible to connected doctors.</div>
+            <input style={inputStyle} placeholder="Product name" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} />
+            <select style={inputStyle} value={newProduct.category} onChange={e => setNewProduct({ ...newProduct, category: e.target.value })}>
+              {['GLP-1', 'Hormone', 'Dermatology', 'Other'].map(c => <option key={c}>{c}</option>)}
+            </select>
+            <input style={inputStyle} placeholder="Description" value={newProduct.description} onChange={e => setNewProduct({ ...newProduct, description: e.target.value })} />
+            <input style={inputStyle} type="number" placeholder="Price per unit ($)" value={newProduct.price_per_unit} onChange={e => setNewProduct({ ...newProduct, price_per_unit: e.target.value })} />
+            <input style={inputStyle} type="number" placeholder="Initial stock (units)" value={newProduct.stock_quantity} onChange={e => setNewProduct({ ...newProduct, stock_quantity: e.target.value })} />
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button onClick={() => setShowAddProduct(false)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+              <button onClick={addProduct} style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Add product</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
