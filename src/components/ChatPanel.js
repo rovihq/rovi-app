@@ -23,12 +23,14 @@ export default function ChatPanel({ isOpen, onClose, contacts }) {
     if (profile?.id) {
       fetchConversations()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
 
   useEffect(() => {
     if (!activeConversation) return
     fetchMessages(activeConversation.id)
     markMessagesRead(activeConversation.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
 
     const channel = supabase
       .channel(`messages:${activeConversation.id}`)
