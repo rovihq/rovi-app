@@ -40,6 +40,7 @@ export default function DoctorDashboard() {
   const [placing, setPlacing] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [chatContacts, setChatContacts] = useState([])
+  const [chatUnread, setChatUnread] = useState(0)
 
   useEffect(() => {
   if (profile?.id) { fetchAll(); fetchChatContacts() }
@@ -232,6 +233,7 @@ export default function DoctorDashboard() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
           <button onClick={() => setShowChat(!showChat)} style={{ padding: '8px 14px', background: '#2C2C2A', border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
             💬 Messages
+            {chatUnread > 0 && <span style={{ background: COLORS.teal, color: COLORS.dark, fontSize: '9px', fontWeight: '700', padding: '1px 5px', borderRadius: '10px' }}>{chatUnread}</span>}
           </button>
         </div>
 
@@ -453,7 +455,7 @@ export default function DoctorDashboard() {
       {showNewOrder && selectedProduct && (
         <OrderModal product={selectedProduct} isReorder={false} onClose={() => { setShowNewOrder(false); setOrderQty(1) }} />
       )}
-      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} />
+      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} onUnreadCount={setChatUnread} />
     </div>
   )
 }

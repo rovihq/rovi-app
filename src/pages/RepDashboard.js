@@ -48,6 +48,7 @@ export default function RepDashboard() {
   const [orderError, setOrderError] = useState('')
   const [showChat, setShowChat] = useState(false)
   const [chatContacts, setChatContacts] = useState([])
+  const [chatUnread, setChatUnread] = useState(0)
 
   useEffect(() => {
   if (profile?.id) { fetchAll(); fetchChatContacts() }
@@ -216,6 +217,7 @@ const sidebarItems = [
             </button>
             <button onClick={() => setShowChat(!showChat)} style={{ padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
               💬 Messages
+              {chatUnread > 0 && <span style={{ background: COLORS.teal, color: COLORS.dark, fontSize: '9px', fontWeight: '700', padding: '1px 5px', borderRadius: '10px' }}>{chatUnread}</span>}
             </button>
             {activeSection === 'doctors' && (
               <button onClick={() => setShowAddDoctor(true)} style={{ padding: '8px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>+ Add doctor</button>
@@ -568,7 +570,7 @@ const sidebarItems = [
           </div>
         </div>
       )}
-      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} />
+      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} onUnreadCount={setChatUnread} />
     </div>
   )
 }
