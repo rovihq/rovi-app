@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import ChatPanel from '../components/ChatPanel'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -46,9 +47,11 @@ export default function SupplierDashboard() {
   const [newProduct, setNewProduct] = useState({ name: '', category: 'GLP-1', description: '', price_per_unit: '', stock_quantity: '' })
   const [orderFilter, setOrderFilter] = useState('All')
   const [loading, setLoading] = useState(true)
+  const [showChat, setShowChat] = useState(false)
+  const [chatContacts, setChatContacts] = useState([])
 
-  useEffect(() => { 
-  if (profile?.id) fetchAll() 
+  useEffect(() => {
+  if (profile?.id) { fetchAll(); fetchChatContacts() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [profile?.id])
 
@@ -63,6 +66,14 @@ export default function SupplierDashboard() {
     setOrders(o.data || [])
     setNotifications(n.data || [])
     setLoading(false)
+  }
+
+  const fetchChatContacts = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, role, company_name')
+      .eq('role', 'rep')
+    setChatContacts(data || [])
   }
 
   const addProduct = async () => {
@@ -149,6 +160,9 @@ export default function SupplierDashboard() {
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button onClick={() => setShowNotif(!showNotif)} style={{ position: 'relative', padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer' }}>
               🔔 Alerts {unreadCount > 0 && <span style={{ background: COLORS.amber, color: COLORS.dark, fontSize: '9px', fontWeight: '600', padding: '1px 5px', borderRadius: '10px', marginLeft: '4px' }}>{unreadCount}</span>}
+            </button>
+            <button onClick={() => setShowChat(!showChat)} style={{ padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              💬 Messages
             </button>
             {activeSection === 'catalog' && (
               <button onClick={() => setShowAddProduct(true)} style={{ padding: '8px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>+ Add product</button>
@@ -370,6 +384,7 @@ export default function SupplierDashboard() {
           </div>
         </div>
       )}
+      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} />
     </div>
   )
 }

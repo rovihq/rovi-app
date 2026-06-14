@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import ChatPanel from '../components/ChatPanel'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -45,9 +46,11 @@ export default function RepDashboard() {
   const [orderPlacing, setOrderPlacing] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [orderError, setOrderError] = useState('')
+  const [showChat, setShowChat] = useState(false)
+  const [chatContacts, setChatContacts] = useState([])
 
-  useEffect(() => { 
-  if (profile?.id) fetchAll() 
+  useEffect(() => {
+  if (profile?.id) { fetchAll(); fetchChatContacts() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [profile?.id])
 
@@ -63,6 +66,14 @@ export default function RepDashboard() {
     setNotifications(n.data || [])
     setProducts(p.data || [])
     setLoading(false)
+  }
+
+  const fetchChatContacts = async () => {
+    const [d, s] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, role, company_name').eq('role', 'doctor').eq('assigned_rep_id', profile.id),
+      supabase.from('profiles').select('id, full_name, role, company_name').eq('role', 'supplier')
+    ])
+    setChatContacts([...(d.data || []), ...(s.data || [])])
   }
 
   const inviteDoctor = async () => {
@@ -202,6 +213,9 @@ const sidebarItems = [
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={() => setShowNotif(!showNotif)} style={{ padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer' }}>
               🔔 {unreadCount > 0 && <span style={{ background: COLORS.amber, color: COLORS.dark, fontSize: '9px', fontWeight: '600', padding: '1px 5px', borderRadius: '10px', marginLeft: '4px' }}>{unreadCount}</span>}
+            </button>
+            <button onClick={() => setShowChat(!showChat)} style={{ padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              💬 Messages
             </button>
             {activeSection === 'doctors' && (
               <button onClick={() => setShowAddDoctor(true)} style={{ padding: '8px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>+ Add doctor</button>
@@ -554,6 +568,7 @@ const sidebarItems = [
           </div>
         </div>
       )}
+      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} />
     </div>
   )
 }

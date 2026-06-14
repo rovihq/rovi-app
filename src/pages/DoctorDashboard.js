@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import ChatPanel from '../components/ChatPanel'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -37,9 +38,11 @@ export default function DoctorDashboard() {
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [loading, setLoading] = useState(true)
   const [placing, setPlacing] = useState(false)
+  const [showChat, setShowChat] = useState(false)
+  const [chatContacts, setChatContacts] = useState([])
 
-  useEffect(() => { 
-  if (profile?.id) fetchAll() 
+  useEffect(() => {
+  if (profile?.id) { fetchAll(); fetchChatContacts() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [profile?.id])
 
@@ -53,6 +56,16 @@ export default function DoctorDashboard() {
     setProducts(p.data || [])
     setRep(r.data)
     setLoading(false)
+  }
+
+  const fetchChatContacts = async () => {
+    if (profile?.assigned_rep_id) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, role, company_name')
+        .eq('id', profile.assigned_rep_id)
+      setChatContacts(data || [])
+    }
   }
 
   const placeOrder = async (product, qty, isReorder = false) => {
@@ -216,6 +229,11 @@ export default function DoctorDashboard() {
 
       {/* MAIN */}
       <div style={{ marginLeft: '220px', flex: 1, padding: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+          <button onClick={() => setShowChat(!showChat)} style={{ padding: '8px 14px', background: '#2C2C2A', border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            💬 Messages
+          </button>
+        </div>
 
         {/* QUICK REORDER */}
         {activeSection === 'reorder' && (
@@ -435,6 +453,7 @@ export default function DoctorDashboard() {
       {showNewOrder && selectedProduct && (
         <OrderModal product={selectedProduct} isReorder={false} onClose={() => { setShowNewOrder(false); setOrderQty(1) }} />
       )}
+      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} />
     </div>
   )
 }
