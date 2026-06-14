@@ -103,30 +103,30 @@ export default function SupplierDashboard() {
     <div style={{ display: 'flex', minHeight: '100vh', background: COLORS.bg2, fontFamily: 'DM Sans, sans-serif' }}>
 
       {/* SIDEBAR */}
-      <div style={{ width: '220px', background: 'white', borderRight: `0.5px solid ${COLORS.border}`, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
-        <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.border}`, fontSize: '20px', fontWeight: '700', color: COLORS.dark }}>
+      <div style={{ width: '220px', background: COLORS.dark, borderRight: `0.5px solid ${COLORS.dark2}`, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
+        <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.dark2}`, fontSize: '20px', fontWeight: '700', color: '#F0EDE6' }}>
           Rovi<span style={{ color: COLORS.green }}>.</span>
         </div>
-        <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${COLORS.border}` }}>
+        <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: COLORS.green3, color: COLORS.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', marginBottom: '6px' }}>
             {profile?.company_name?.charAt(0) || 'S'}
           </div>
-          <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{profile?.company_name}</div>
-          <div style={{ fontSize: '11px', color: COLORS.text3 }}>Supplier account</div>
+          <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6' }}>{profile?.company_name}</div>
+          <div style={{ fontSize: '11px', color: '#5F5E5A' }}>Supplier account</div>
         </div>
         <div style={{ padding: '12px 10px', flex: 1 }}>
-          <div style={{ fontSize: '10px', fontWeight: '500', color: COLORS.text3, letterSpacing: '1px', textTransform: 'uppercase', padding: '8px 8px 4px' }}>Main</div>
+          <div style={{ fontSize: '10px', fontWeight: '500', color: '#5F5E5A', letterSpacing: '1px', textTransform: 'uppercase', padding: '8px 8px 4px' }}>Main</div>
           {sidebarItems.map(item => (
             <div key={item.id} onClick={() => setActiveSection(item.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '7px', cursor: 'pointer', marginBottom: '2px', background: activeSection === item.id ? COLORS.green3 : 'transparent', color: activeSection === item.id ? COLORS.green : COLORS.text2, fontSize: '13px', fontWeight: activeSection === item.id ? '500' : '400' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '7px', cursor: 'pointer', marginBottom: '2px', background: activeSection === item.id ? COLORS.teal : 'transparent', color: activeSection === item.id ? COLORS.dark : '#888780', fontSize: '13px', fontWeight: activeSection === item.id ? '500' : '400' }}>
               <span>{item.icon}</span>
               {item.label}
               {item.badge > 0 && <span style={{ marginLeft: 'auto', background: COLORS.amber2, color: COLORS.amber, fontSize: '10px', fontWeight: '600', padding: '1px 6px', borderRadius: '20px' }}>{item.badge}</span>}
             </div>
           ))}
         </div>
-        <div style={{ padding: '16px 18px', borderTop: `0.5px solid ${COLORS.border}` }}>
-          <button onClick={signOut} style={{ width: '100%', padding: '9px', background: 'transparent', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', color: COLORS.text2, fontSize: '13px', cursor: 'pointer' }}>Sign out</button>
+        <div style={{ padding: '16px 18px', borderTop: `0.5px solid ${COLORS.dark2}` }}>
+          <button onClick={signOut} style={{ width: '100%', padding: '9px', background: 'transparent', border: `0.5px solid #3D3D3A`, borderRadius: '7px', color: '#5F5E5A', fontSize: '13px', cursor: 'pointer' }}>Sign out</button>
         </div>
       </div>
 

@@ -165,21 +165,21 @@ export default function DoctorDashboard() {
     <div style={{ display: 'flex', minHeight: '100vh', background: COLORS.bg2, fontFamily: 'DM Sans, sans-serif' }}>
 
       {/* SIDEBAR */}
-      <div style={{ width: '220px', background: 'white', borderRight: `0.5px solid ${COLORS.border}`, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
-        <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.border}`, fontSize: '20px', fontWeight: '700', color: COLORS.dark }}>
+      <div style={{ width: '220px', background: COLORS.dark, borderRight: `0.5px solid ${COLORS.dark2}`, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
+        <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.dark2}`, fontSize: '20px', fontWeight: '700', color: '#F0EDE6' }}>
           Rovi<span style={{ color: COLORS.green }}>.</span>
         </div>
-        <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${COLORS.border}` }}>
+        <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', marginBottom: '6px' }}>
             {profile?.full_name?.charAt(0) || 'D'}
           </div>
-          <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{profile?.full_name}</div>
-          <div style={{ fontSize: '11px', color: COLORS.text3 }}>{profile?.company_name}</div>
+          <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6' }}>{profile?.full_name}</div>
+          <div style={{ fontSize: '11px', color: '#5F5E5A' }}>{profile?.company_name}</div>
         </div>
 
         {/* Rep connection */}
         {rep && (
-          <div style={{ padding: '12px 18px', borderBottom: `0.5px solid ${COLORS.border}` }}>
+          <div style={{ padding: '12px 18px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: COLORS.green3, borderRadius: '8px' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: COLORS.green, flexShrink: 0 }} />
               <div>
@@ -198,19 +198,19 @@ export default function DoctorDashboard() {
             { id: 'profile', label: '◎ My Profile' },
           ].map(item => (
             <div key={item.id} onClick={() => setActiveSection(item.id)}
-              style={{ padding: '8px 10px', borderRadius: '7px', cursor: 'pointer', marginBottom: '2px', background: activeSection === item.id ? COLORS.green3 : 'transparent', color: activeSection === item.id ? COLORS.green : COLORS.text2, fontSize: '13px', fontWeight: activeSection === item.id ? '500' : '400' }}>
+              style={{ padding: '8px 10px', borderRadius: '7px', cursor: 'pointer', marginBottom: '2px', background: activeSection === item.id ? COLORS.teal : 'transparent', color: activeSection === item.id ? COLORS.dark : '#888780', fontSize: '13px', fontWeight: activeSection === item.id ? '500' : '400' }}>
               {item.label}
             </div>
           ))}
         </div>
 
-        <div style={{ padding: '16px 18px', borderBottom: `0.5px solid ${COLORS.border}` }}>
-          <div style={{ fontSize: '10px', fontWeight: '500', color: COLORS.text3, marginBottom: '4px' }}>FREE FOR DOCTORS</div>
-          <div style={{ fontSize: '11px', color: COLORS.text3 }}>Rovi is always free for doctors and clinics.</div>
+        <div style={{ padding: '16px 18px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
+          <div style={{ fontSize: '10px', fontWeight: '500', color: '#5F5E5A', marginBottom: '4px' }}>FREE FOR DOCTORS</div>
+          <div style={{ fontSize: '11px', color: '#5F5E5A' }}>Rovi is always free for doctors and clinics.</div>
         </div>
 
         <div style={{ padding: '16px 18px' }}>
-          <button onClick={signOut} style={{ width: '100%', padding: '9px', background: 'transparent', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', color: COLORS.text2, fontSize: '13px', cursor: 'pointer' }}>Sign out</button>
+          <button onClick={signOut} style={{ width: '100%', padding: '9px', background: 'transparent', border: `0.5px solid #3D3D3A`, borderRadius: '7px', color: '#5F5E5A', fontSize: '13px', cursor: 'pointer' }}>Sign out</button>
         </div>
       </div>
 
