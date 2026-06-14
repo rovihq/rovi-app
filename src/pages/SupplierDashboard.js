@@ -36,6 +36,26 @@ const StockBar = ({ quantity }) => {
   )
 }
 
+function ConnectedReps({ supplierId, onMessage }) {
+  const [reps, setReps] = useState([])
+  useEffect(() => {
+    if (!supplierId) return
+    supabase.from('profiles').select('id,full_name,company_name,territory')
+      .eq('role','rep').then(({ data }) => setReps(data || []))
+  }, [supplierId])
+  if (reps.length === 0) return <div style={{ color: '#A8A8A2', fontSize: '13px', padding: '20px', textAlign: 'center' }}>No reps connected yet</div>
+  return reps.map(r => (
+    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '0.5px solid #E2E0D8' }}>
+      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600' }}>{r.full_name?.charAt(0)}</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A' }}>{r.full_name}</div>
+        <div style={{ fontSize: '11px', color: '#A8A8A2' }}>{r.company_name} · {r.territory}</div>
+      </div>
+      <button onClick={onMessage} style={{ padding: '6px 12px', background: '#E8F7F1', color: '#0F6E56', border: '0.5px solid #9FE1CB', borderRadius: '6px', fontSize: '11px', fontWeight: '500', cursor: 'pointer' }}>💬 Message</button>
+    </div>
+  ))
+}
+
 export default function SupplierDashboard() {
   const { profile, signOut } = useAuth()
   const [activeSection, setActiveSection] = useState('overview')
@@ -105,6 +125,7 @@ export default function SupplierDashboard() {
     { id: 'orders', label: 'Orders', icon: '≡', badge: orders.filter(o => o.status === 'New').length },
     { id: 'catalog', label: 'Catalog', icon: '+' },
     { id: 'insights', label: 'Demand Insights', icon: '↗' },
+    { id: 'admin', label: '⚙ Admin', icon: '⚙' },
   ]
 
   const inputStyle = { width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', marginBottom: '10px', outline: 'none', background: 'white' }
@@ -365,6 +386,58 @@ export default function SupplierDashboard() {
           </>
         )}
       </div>
+
+      {/* ADMIN */}
+        {activeSection === 'admin' && (
+          <>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>Admin Panel</div>
+              <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>Manage your account, network, and connected doctors</div>
+            </div>
+
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>Account details</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {[
+                  { label: 'Company name', value: profile?.company_name },
+                  { label: 'Account type', value: 'Supplier / 503B' },
+                  { label: 'Active products', value: products.filter(p => p.is_active).length },
+                  { label: 'Total orders received', value: orders.length },
+                ].map((m, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '4px' }}>{m.label}</div>
+                    <div style={{ fontSize: '14px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>Connected reps</div>
+              <ConnectedReps supplierId={profile?.id} onMessage={() => setShowChat(true)} />
+            </div>
+
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '500' }}>Product management</div>
+                <button onClick={() => { setActiveSection('catalog'); setShowAddProduct(true) }}
+                  style={{ padding: '7px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                  + Add product
+                </button>
+              </div>
+              {products.map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{p.name}</div>
+                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>{p.category} · ${Number(p.price_per_unit).toFixed(2)}/unit · {p.stock_quantity} units</div>
+                  </div>
+                  <div style={{ width: '60px' }}><StockBar quantity={p.stock_quantity} /></div>
+                  <span style={{ fontSize: '11px', fontWeight: '500', color: p.is_active ? COLORS.green : COLORS.text3 }}>{p.is_active ? 'Active' : 'Inactive'}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
       {/* ADD PRODUCT MODAL */}
       {showAddProduct && (

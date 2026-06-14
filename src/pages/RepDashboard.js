@@ -77,6 +77,10 @@ export default function RepDashboard() {
     setChatContacts([...(d.data || []), ...(s.data || [])])
   }
 
+  const startOrOpenConversation = (contactId) => {
+    setShowChat(true)
+  }
+
   const inviteDoctor = async () => {
     if (!newDoctor.email || !newDoctor.full_name) return
     setInviteMsg('')
@@ -158,6 +162,7 @@ const sidebarItems = [
     { id: 'catalog', label: 'Browse Catalog' },
     { id: 'attainment', label: 'Attainment' },
     { id: 'commission', label: 'Commission' },
+    { id: 'admin', label: '⚙ Admin' },
   ]
 
   const inputStyle = { width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', marginBottom: '10px', outline: 'none', background: 'white' }
@@ -481,6 +486,84 @@ const sidebarItems = [
           </>
         )}
       </div>
+
+      {/* ADMIN */}
+        {activeSection === 'admin' && (
+          <>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>Admin Panel</div>
+              <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>Manage your territory, doctors, and account settings</div>
+            </div>
+
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>Territory settings</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {[
+                  { label: 'Rep name', value: profile?.full_name },
+                  { label: 'Territory', value: profile?.territory || 'Not set' },
+                  { label: 'Company', value: profile?.company_name },
+                  { label: 'Active doctors', value: doctors.length },
+                ].map((m, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '4px' }}>{m.label}</div>
+                    <div style={{ fontSize: '14px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '500' }}>Doctor management</div>
+                <button onClick={() => setShowAddDoctor(true)}
+                  style={{ padding: '7px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                  + Add doctor
+                </button>
+              </div>
+              {doctors.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px', color: COLORS.text3, fontSize: '13px' }}>No doctors yet — add your first doctor above</div>
+              ) : doctors.map(d => {
+                const lastOrder = getLastOrderDate(d.id)
+                const daysSince = lastOrder ? Math.floor((Date.now() - new Date(lastOrder)) / 86400000) : null
+                const doctorOrders = orders.filter(o => o.doctor_id === d.id)
+                const doctorRevenue = doctorOrders.reduce((s, o) => s + Number(o.total_price), 0)
+                return (
+                  <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '600', flexShrink: 0 }}>
+                      {d.full_name?.charAt(0)}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{d.full_name}</div>
+                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>
+                        {d.company_name} · {doctorOrders.length} orders · ${doctorRevenue.toFixed(2)} revenue · Last: {lastOrder ? `${daysSince}d ago` : 'Never'}
+                      </div>
+                    </div>
+                    <button onClick={() => startOrOpenConversation(d.id)}
+                      style={{ padding: '6px 12px', background: COLORS.green3, color: COLORS.green, border: `0.5px solid #9FE1CB`, borderRadius: '6px', fontSize: '11px', fontWeight: '500', cursor: 'pointer' }}>
+                      💬 Message
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>Account summary</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
+                {[
+                  { label: 'Total orders', value: orders.length },
+                  { label: 'Total revenue', value: `$${orders.reduce((s,o) => s+Number(o.total_price),0).toFixed(2)}` },
+                  { label: 'Total commission', value: `$${(orders.reduce((s,o) => s+Number(o.total_price),0)*0.08).toFixed(2)}` },
+                ].map((m,i) => (
+                  <div key={i} style={{ background: COLORS.bg2, borderRadius: '8px', padding: '14px' }}>
+                    <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '4px' }}>{m.label}</div>
+                    <div style={{ fontSize: '20px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
       {/* ORDER FOR DOCTOR MODAL */}
       {showOrderModal && selectedProduct && (
