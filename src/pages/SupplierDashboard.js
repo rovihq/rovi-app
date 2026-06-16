@@ -70,9 +70,10 @@ export default function SupplierDashboard() {
   const [showChat, setShowChat] = useState(false)
   const [chatContacts, setChatContacts] = useState([])
   const [chatUnread, setChatUnread] = useState(0)
+  const [repPerformance, setRepPerformance] = useState([])
 
   useEffect(() => {
-  if (profile?.id) { fetchAll(); fetchChatContacts() }
+  if (profile?.id) { fetchAll(); fetchChatContacts(); fetchRepPerformance() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [profile?.id])
 
@@ -95,6 +96,44 @@ export default function SupplierDashboard() {
       .select('id, full_name, role, company_name')
       .eq('role', 'rep')
     setChatContacts(data || [])
+  }
+
+  const fetchRepPerformance = async () => {
+    const { data: reps } = await supabase
+      .from('profiles')
+      .select('id, full_name, company_name, territory')
+      .eq('role', 'rep')
+
+    if (!reps?.length) return
+
+    const repData = await Promise.all(reps.map(async (rep) => {
+      const { data: repOrders } = await supabase
+        .from('orders')
+        .select('total_price, is_direct_order, order_date, product:products(name, category)')
+        .eq('credited_rep_id', rep.id)
+        .eq('supplier_id', profile.id)
+
+      const orders = repOrders || []
+      const now = new Date()
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const mtdOrders = orders.filter(o => new Date(o.order_date) >= monthStart)
+      const totalRevenue = orders.reduce((s, o) => s + Number(o.total_price), 0)
+      const mtdRevenue = mtdOrders.reduce((s, o) => s + Number(o.total_price), 0)
+
+      return {
+        ...rep,
+        totalOrders: orders.length,
+        totalRevenue,
+        mtdRevenue,
+        commission: totalRevenue * 0.08,
+        mtdCommission: mtdRevenue * 0.08,
+        directOrders: orders.filter(o => o.is_direct_order).length,
+        mtdOrders: mtdOrders.length,
+        recentOrders: orders.slice(0, 3)
+      }
+    }))
+
+    setRepPerformance(repData.sort((a, b) => b.totalRevenue - a.totalRevenue))
   }
 
   const addProduct = async () => {
@@ -125,6 +164,7 @@ export default function SupplierDashboard() {
     { id: 'orders', label: 'Orders', icon: '≡', badge: orders.filter(o => o.status === 'New').length },
     { id: 'catalog', label: 'Catalog', icon: '+' },
     { id: 'insights', label: 'Demand Insights', icon: '↗' },
+    { id: 'reps', label: 'Rep Performance', icon: '↗' },
     { id: 'admin', label: '⚙ Admin', icon: '⚙' },
   ]
 
@@ -386,6 +426,106 @@ export default function SupplierDashboard() {
           </>
         )}
       </div>
+
+      {/* REP PERFORMANCE */}
+        {activeSection === 'reps' && (
+          <>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>Rep Performance</div>
+              <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>
+                Revenue, commissions, and order activity across your rep network
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
+              {[
+                { label: 'Total reps', value: repPerformance.length },
+                { label: 'Total rep-driven revenue', value: `$${repPerformance.reduce((s,r) => s+r.totalRevenue,0).toFixed(2)}` },
+                { label: 'Total commissions owed', value: `$${repPerformance.reduce((s,r) => s+r.commission,0).toFixed(2)}` },
+                { label: 'Orders this month', value: repPerformance.reduce((s,r) => s+r.mtdOrders,0) },
+              ].map((m,i) => (
+                <div key={i} style={{ background: 'white', borderRadius: '9px', padding: '15px', border: `0.5px solid ${COLORS.border}` }}>
+                  <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
+                  <div style={{ fontSize: '22px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {repPerformance.length === 0 ? (
+              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '60px', textAlign: 'center', color: COLORS.text3, fontSize: '13px' }}>
+                No rep activity yet. Orders placed through reps will appear here.
+              </div>
+            ) : repPerformance.map((rep, idx) => (
+              <div key={rep.id} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '16px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: '600', flexShrink: 0 }}>
+                    {rep.full_name?.charAt(0)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ fontSize: '15px', fontWeight: '500', color: COLORS.dark }}>{rep.full_name}</div>
+                      {idx === 0 && rep.totalRevenue > 0 && (
+                        <span style={{ background: '#FAEEDA', color: '#633806', fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px' }}>⭐ Top performer</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '12px', color: COLORS.text3 }}>{rep.company_name} · {rep.territory}</div>
+                  </div>
+                  <button onClick={() => setShowChat(true)}
+                    style={{ padding: '7px 14px', background: COLORS.green3, color: COLORS.green, border: `0.5px solid #9FE1CB`, borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                    💬 Message
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '10px', marginBottom: '16px' }}>
+                  {[
+                    { label: 'Total orders', value: rep.totalOrders },
+                    { label: 'Total revenue', value: `$${rep.totalRevenue.toFixed(2)}` },
+                    { label: 'Commission owed', value: `$${rep.commission.toFixed(2)}` },
+                    { label: 'MTD revenue', value: `$${rep.mtdRevenue.toFixed(2)}` },
+                    { label: 'Direct orders', value: rep.directOrders },
+                  ].map((m,i) => (
+                    <div key={i} style={{ background: COLORS.bg2, borderRadius: '8px', padding: '12px' }}>
+                      <div style={{ fontSize: '10px', color: COLORS.text3, marginBottom: '4px' }}>{m.label}</div>
+                      <div style={{ fontSize: '16px', fontWeight: '500', color: i === 2 ? COLORS.amber : COLORS.dark }}>{m.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: '#FFF9F0', border: `0.5px solid #FAC775`, borderRadius: '8px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '500', color: '#633806', marginBottom: '2px' }}>Commission structure</div>
+                    <div style={{ fontSize: '12px', color: '#7A4506' }}>8% on all orders · ${rep.mtdRevenue.toFixed(2)} MTD revenue → <strong>${rep.mtdCommission.toFixed(2)} MTD commission</strong></div>
+                  </div>
+                  <div style={{ fontSize: '20px', fontWeight: '600', color: COLORS.amber }}>${rep.commission.toFixed(2)}</div>
+                </div>
+
+                {rep.recentOrders.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '500', color: COLORS.text3, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Recent orders via this rep</div>
+                    {rep.recentOrders.map((o, oi) => (
+                      <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: o.is_direct_order ? COLORS.amber : COLORS.green, flexShrink: 0 }} />
+                        <div style={{ flex: 1, fontSize: '12px', color: COLORS.dark }}>{o.product?.name}</div>
+                        <div style={{ fontSize: '11px', color: COLORS.text3 }}>{new Date(o.order_date).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '12px', fontWeight: '500' }}>${Number(o.total_price).toFixed(2)}</div>
+                        <span style={{ fontSize: '10px', background: o.is_direct_order ? '#FAEEDA' : COLORS.green3, color: o.is_direct_order ? '#633806' : '#085041', padding: '2px 7px', borderRadius: '20px' }}>
+                          {o.is_direct_order ? 'Direct' : 'Via rep'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {rep.totalOrders === 0 && (
+                  <div style={{ fontSize: '12px', color: COLORS.text3, textAlign: 'center', padding: '12px' }}>No orders yet from this rep's doctors</div>
+                )}
+              </div>
+            ))}
+
+            <div style={{ background: COLORS.green3, border: `0.5px solid #9FE1CB`, borderRadius: '8px', padding: '12px 16px', fontSize: '12px', color: '#085041', lineHeight: '1.6' }}>
+              <strong>Commission note:</strong> Commissions shown are calculated at 8% of order value for all orders credited to each rep — including direct orders placed by doctors. Adjust your commission rate in your account settings when needed.
+            </div>
+          </>
+        )}
 
       {/* ADMIN */}
         {activeSection === 'admin' && (
