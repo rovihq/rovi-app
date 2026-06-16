@@ -162,7 +162,9 @@ export default function SupplierDashboard() {
 
   const inputStyle = { width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', marginBottom: '10px', outline: 'none', background: 'white' }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: COLORS.green, fontSize: '18px' }}>Loading...</div>return (
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: COLORS.green, fontSize: '18px' }}>Loading...</div>
+
+  return (
     <div style={{ display: 'flex', minHeight: '100vh', background: COLORS.bg2, fontFamily: 'DM Sans, sans-serif' }}>
 
       {/* SIDEBAR */}
