@@ -19,11 +19,7 @@ const Badge = ({ status }) => {
     Delivered: { bg: '#E8E8E8', color: '#5F5E5A' },
   }
   const c = colors[status] || colors.New
-  return (
-    <span style={{ background: c.bg, color: c.color, fontSize: '10px', fontWeight: '500', padding: '3px 8px', borderRadius: '20px' }}>
-      {status}
-    </span>
-  )
+  return <span style={{ background: c.bg, color: c.color, fontSize: '10px', fontWeight: '500', padding: '3px 8px', borderRadius: '20px' }}>{status}</span>
 }
 
 const StockBar = ({ quantity }) => {
@@ -41,7 +37,7 @@ function ConnectedReps({ supplierId, onMessage }) {
   useEffect(() => {
     if (!supplierId) return
     supabase.from('profiles').select('id,full_name,company_name,territory')
-      .eq('role','rep').then(({ data }) => setReps(data || []))
+      .eq('role', 'rep').then(({ data }) => setReps(data || []))
   }, [supplierId])
   if (reps.length === 0) return <div style={{ color: '#A8A8A2', fontSize: '13px', padding: '20px', textAlign: 'center' }}>No reps connected yet</div>
   return reps.map(r => (
@@ -69,13 +65,14 @@ export default function SupplierDashboard() {
   const [loading, setLoading] = useState(true)
   const [showChat, setShowChat] = useState(false)
   const [chatContacts, setChatContacts] = useState([])
-  const [chatUnread, setChatUnread] = useState(0)
   const [repPerformance, setRepPerformance] = useState([])
+  const [commissionRate, setCommissionRate] = useState(8)
+  const [editingRate, setEditingRate] = useState(false)
 
   useEffect(() => {
-  if (profile?.id) { fetchAll(); fetchChatContacts(); fetchRepPerformance() }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [profile?.id])
+    if (profile?.id) { fetchAll(); fetchChatContacts(); fetchRepPerformance() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id])
 
   const fetchAll = async () => {
     if (!profile?.id) return
@@ -91,48 +88,43 @@ export default function SupplierDashboard() {
   }
 
   const fetchChatContacts = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, role, company_name')
-      .eq('role', 'rep')
+    const { data } = await supabase.from('profiles').select('id, full_name, role, company_name').eq('role', 'rep')
     setChatContacts(data || [])
   }
 
   const fetchRepPerformance = async () => {
-    const { data: reps } = await supabase
-      .from('profiles')
-      .select('id, full_name, company_name, territory')
-      .eq('role', 'rep')
-
+    if (!profile?.id) return
+    const { data: reps } = await supabase.from('profiles').select('id, full_name, company_name, territory').eq('role', 'rep')
     if (!reps?.length) return
-
     const repData = await Promise.all(reps.map(async (rep) => {
       const { data: repOrders } = await supabase
         .from('orders')
         .select('total_price, is_direct_order, order_date, product:products(name, category)')
         .eq('credited_rep_id', rep.id)
         .eq('supplier_id', profile.id)
-
       const orders = repOrders || []
       const now = new Date()
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const mtdOrders = orders.filter(o => new Date(o.order_date) >= monthStart)
+      const prevMtdOrders = orders.filter(o => new Date(o.order_date) >= prevMonthStart && new Date(o.order_date) < monthStart)
       const totalRevenue = orders.reduce((s, o) => s + Number(o.total_price), 0)
       const mtdRevenue = mtdOrders.reduce((s, o) => s + Number(o.total_price), 0)
-
+      const prevRevenue = prevMtdOrders.reduce((s, o) => s + Number(o.total_price), 0)
       return {
         ...rep,
         totalOrders: orders.length,
         totalRevenue,
         mtdRevenue,
-        commission: totalRevenue * 0.08,
-        mtdCommission: mtdRevenue * 0.08,
+        prevRevenue,
+        commission: totalRevenue * (commissionRate / 100),
+        mtdCommission: mtdRevenue * (commissionRate / 100),
         directOrders: orders.filter(o => o.is_direct_order).length,
         mtdOrders: mtdOrders.length,
-        recentOrders: orders.slice(0, 3)
+        recentOrders: orders.slice(-3).reverse(),
+        growth: prevRevenue > 0 ? (((mtdRevenue - prevRevenue) / prevRevenue) * 100).toFixed(0) : null
       }
     }))
-
     setRepPerformance(repData.sort((a, b) => b.totalRevenue - a.totalRevenue))
   }
 
@@ -163,22 +155,20 @@ export default function SupplierDashboard() {
     { id: 'overview', label: 'Overview', icon: '⊞' },
     { id: 'orders', label: 'Orders', icon: '≡', badge: orders.filter(o => o.status === 'New').length },
     { id: 'catalog', label: 'Catalog', icon: '+' },
+    { id: 'reps', label: 'Rep Performance', icon: '📊' },
     { id: 'insights', label: 'Demand Insights', icon: '↗' },
-    { id: 'reps', label: 'Rep Performance', icon: '↗' },
     { id: 'admin', label: '⚙ Admin', icon: '⚙' },
   ]
 
   const inputStyle = { width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', marginBottom: '10px', outline: 'none', background: 'white' }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: COLORS.green, fontSize: '18px' }}>Loading...</div>
-
-  return (
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: COLORS.green, fontSize: '18px' }}>Loading...</div>return (
     <div style={{ display: 'flex', minHeight: '100vh', background: COLORS.bg2, fontFamily: 'DM Sans, sans-serif' }}>
 
       {/* SIDEBAR */}
       <div style={{ width: '220px', background: COLORS.dark, borderRight: `0.5px solid ${COLORS.dark2}`, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
         <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.dark2}`, fontSize: '20px', fontWeight: '700', color: '#F0EDE6' }}>
-          Rovi<span style={{ color: COLORS.green }}>.</span>
+          Rovi<span style={{ color: COLORS.teal }}>.</span>
         </div>
         <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: COLORS.green3, color: COLORS.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', marginBottom: '6px' }}>
@@ -187,7 +177,7 @@ export default function SupplierDashboard() {
           <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6' }}>{profile?.company_name}</div>
           <div style={{ fontSize: '11px', color: '#5F5E5A' }}>Supplier account</div>
         </div>
-        <div style={{ padding: '12px 10px', flex: 1 }}>
+        <div style={{ padding: '12px 10px', flex: 1, overflowY: 'auto' }}>
           <div style={{ fontSize: '10px', fontWeight: '500', color: '#5F5E5A', letterSpacing: '1px', textTransform: 'uppercase', padding: '8px 8px 4px' }}>Main</div>
           {sidebarItems.map(item => (
             <div key={item.id} onClick={() => setActiveSection(item.id)}
@@ -198,7 +188,11 @@ export default function SupplierDashboard() {
             </div>
           ))}
         </div>
-        <div style={{ padding: '16px 18px', borderTop: `0.5px solid ${COLORS.dark2}` }}>
+        <div style={{ padding: '12px 18px', borderTop: `0.5px solid ${COLORS.dark2}` }}>
+          <button onClick={() => setShowChat(!showChat)}
+            style={{ width: '100%', padding: '9px', background: showChat ? COLORS.teal : 'transparent', border: `0.5px solid #3D3D3A`, borderRadius: '7px', color: showChat ? COLORS.dark : '#5F5E5A', fontSize: '13px', cursor: 'pointer', marginBottom: '8px' }}>
+            💬 Messages
+          </button>
           <button onClick={signOut} style={{ width: '100%', padding: '9px', background: 'transparent', border: `0.5px solid #3D3D3A`, borderRadius: '7px', color: '#5F5E5A', fontSize: '13px', cursor: 'pointer' }}>Sign out</button>
         </div>
       </div>
@@ -214,18 +208,16 @@ export default function SupplierDashboard() {
               {activeSection === 'orders' && 'Orders'}
               {activeSection === 'catalog' && 'Product Catalog'}
               {activeSection === 'insights' && 'Demand Insights'}
+              {activeSection === 'reps' && 'Rep Performance'}
+              {activeSection === 'admin' && 'Admin Panel'}
             </div>
             <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>
               {orders.filter(o => o.status === 'New').length} orders need attention
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button onClick={() => setShowNotif(!showNotif)} style={{ position: 'relative', padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer' }}>
+            <button onClick={() => setShowNotif(!showNotif)} style={{ padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer' }}>
               🔔 Alerts {unreadCount > 0 && <span style={{ background: COLORS.amber, color: COLORS.dark, fontSize: '9px', fontWeight: '600', padding: '1px 5px', borderRadius: '10px', marginLeft: '4px' }}>{unreadCount}</span>}
-            </button>
-            <button onClick={() => setShowChat(!showChat)} style={{ padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              💬 Messages
-              {chatUnread > 0 && <span style={{ background: COLORS.teal, color: COLORS.dark, fontSize: '9px', fontWeight: '700', padding: '1px 5px', borderRadius: '10px' }}>{chatUnread}</span>}
             </button>
             {activeSection === 'catalog' && (
               <button onClick={() => setShowAddProduct(true)} style={{ padding: '8px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>+ Add product</button>
@@ -233,7 +225,7 @@ export default function SupplierDashboard() {
           </div>
         </div>
 
-        {/* NOTIFICATIONS PANEL */}
+        {/* NOTIFICATIONS */}
         {showNotif && (
           <div style={{ position: 'fixed', top: '60px', right: '24px', width: '320px', background: COLORS.dark, border: `0.5px solid ${COLORS.dark2}`, borderRadius: '12px', zIndex: 500, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
             <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${COLORS.dark2}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -264,31 +256,28 @@ export default function SupplierDashboard() {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
               {[
-                { label: 'Orders this month', value: mtdOrders.length, delta: '+18% vs last month', color: COLORS.green },
-                { label: 'Revenue (MTD)', value: `$${mtdRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, delta: 'This month', color: COLORS.green },
-                { label: 'Active products', value: products.filter(p => p.is_active).length, delta: 'In catalog', color: COLORS.green },
-                { label: 'Total orders', value: orders.length, delta: 'All time', color: COLORS.green },
+                { label: 'Orders this month', value: mtdOrders.length, delta: 'This month' },
+                { label: 'Revenue (MTD)', value: `$${mtdRevenue.toFixed(2)}`, delta: 'This month' },
+                { label: 'Active products', value: products.filter(p => p.is_active).length, delta: 'In catalog' },
+                { label: 'Total orders', value: orders.length, delta: 'All time' },
               ].map((m, i) => (
                 <div key={i} style={{ background: 'white', borderRadius: '9px', padding: '15px', border: `0.5px solid ${COLORS.border}` }}>
                   <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
-                  <div style={{ fontSize: '24px', fontWeight: '500', color: COLORS.dark, lineHeight: 1 }}>{m.value}</div>
-                  <div style={{ fontSize: '11px', color: m.color, marginTop: '4px' }}>{m.delta}</div>
+                  <div style={{ fontSize: '24px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
+                  <div style={{ fontSize: '11px', color: COLORS.green, marginTop: '4px' }}>{m.delta}</div>
                 </div>
               ))}
             </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-              {/* Recent orders */}
               <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
                   <span style={{ fontSize: '13px', fontWeight: '500' }}>Recent orders</span>
-                  <span onClick={() => setActiveSection('orders')} style={{ fontSize: '12px', color: COLORS.green, cursor: 'pointer', fontWeight: '500' }}>View all →</span>
+                  <span onClick={() => setActiveSection('orders')} style={{ fontSize: '12px', color: COLORS.green, cursor: 'pointer' }}>View all →</span>
                 </div>
                 {orders.slice(0, 5).map(o => (
                   <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
-                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: o.status === 'New' ? COLORS.green : o.status === 'Processing' ? COLORS.amber : '#378ADD', flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.doctor?.company_name || o.doctor?.full_name}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.dark }}>{o.doctor?.company_name || o.doctor?.full_name}</div>
                       <div style={{ fontSize: '11px', color: COLORS.text3 }}>{o.product?.name}</div>
                     </div>
                     <div style={{ fontSize: '12px', fontWeight: '500' }}>${Number(o.total_price).toFixed(2)}</div>
@@ -297,12 +286,10 @@ export default function SupplierDashboard() {
                 ))}
                 {orders.length === 0 && <div style={{ color: COLORS.text3, fontSize: '13px', textAlign: 'center', padding: '20px' }}>No orders yet</div>}
               </div>
-
-              {/* Catalog */}
               <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
                   <span style={{ fontSize: '13px', fontWeight: '500' }}>Catalog inventory</span>
-                  <span onClick={() => setActiveSection('catalog')} style={{ fontSize: '12px', color: COLORS.green, cursor: 'pointer', fontWeight: '500' }}>Manage →</span>
+                  <span onClick={() => setActiveSection('catalog')} style={{ fontSize: '12px', color: COLORS.green, cursor: 'pointer' }}>Manage →</span>
                 </div>
                 {products.map(p => (
                   <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
@@ -313,20 +300,15 @@ export default function SupplierDashboard() {
                     <StockBar quantity={p.stock_quantity} />
                   </div>
                 ))}
-                {products.length === 0 && <div style={{ color: COLORS.text3, fontSize: '13px', textAlign: 'center', padding: '20px' }}>No products yet</div>}
               </div>
             </div>
-
-            {/* AI Alerts */}
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <span style={{ fontSize: '13px', fontWeight: '500' }}>AI demand alerts</span>
-              </div>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>AI demand alerts</div>
               {products.filter(p => p.stock_quantity < 50).map(p => (
                 <div key={p.id} style={{ display: 'flex', gap: '10px', padding: '10px 12px', background: p.stock_quantity < 20 ? '#FCEBEB' : COLORS.amber2, borderRadius: '8px', marginBottom: '6px' }}>
                   <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: p.stock_quantity < 20 ? COLORS.red : COLORS.amber, marginTop: '5px', flexShrink: 0 }} />
                   <div style={{ fontSize: '12px', color: p.stock_quantity < 20 ? '#791F1F' : '#633806' }}>
-                    <strong>{p.name}</strong> is {p.stock_quantity < 20 ? 'critically' : 'running'} low ({p.stock_quantity} units remaining). Consider restocking soon.
+                    <strong>{p.name}</strong> is {p.stock_quantity < 20 ? 'critically' : 'running'} low ({p.stock_quantity} units). Consider restocking.
                   </div>
                 </div>
               ))}
@@ -340,7 +322,7 @@ export default function SupplierDashboard() {
         {/* ORDERS */}
         {activeSection === 'orders' && (
           <>
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
               {['All', 'New', 'Processing', 'Shipped', 'Delivered'].map(f => (
                 <button key={f} onClick={() => setOrderFilter(f)}
                   style={{ padding: '6px 14px', borderRadius: '20px', border: `0.5px solid ${COLORS.border}`, background: orderFilter === f ? COLORS.dark : 'white', color: orderFilter === f ? 'white' : COLORS.text2, fontSize: '12px', cursor: 'pointer' }}>
@@ -350,7 +332,7 @@ export default function SupplierDashboard() {
             </div>
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
               {filteredOrders.length === 0 ? (
-                <div style={{ textAlign: 'center', color: COLORS.text3, padding: '40px', fontSize: '14px' }}>No orders found</div>
+                <div style={{ textAlign: 'center', color: COLORS.text3, padding: '40px' }}>No orders found</div>
               ) : filteredOrders.map(o => (
                 <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
                   <div style={{ flex: 1 }}>
@@ -379,27 +361,152 @@ export default function SupplierDashboard() {
                 <div style={{ fontSize: '11px', color: p.stock_quantity < 20 ? COLORS.red : COLORS.text3, marginTop: '5px', marginBottom: '12px' }}>
                   {p.stock_quantity} units {p.stock_quantity < 20 ? '— CRITICAL' : p.stock_quantity < 50 ? '— Low' : ''}
                 </div>
-                <div style={{ fontSize: '12px', color: COLORS.text2, lineHeight: '1.5', marginBottom: '12px' }}>{p.description}</div>
+                <div style={{ fontSize: '12px', color: COLORS.text2, lineHeight: '1.5' }}>{p.description}</div>
               </div>
             ))}
-            {products.length === 0 && (
-              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: COLORS.text3 }}>
-                No products yet. Click "+ Add product" to add your first product.
-              </div>
-            )}
+            {products.length === 0 && <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: COLORS.text3 }}>No products yet. Click "+ Add product" above.</div>}
           </div>
+        )}{/* REP PERFORMANCE */}
+        {activeSection === 'reps' && (
+          <>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>Rep Performance</div>
+              <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>Revenue, commissions, and order activity across your rep network</div>
+            </div>
+
+            <div style={{ background: '#FFF9F0', border: `0.5px solid #FAC775`, borderRadius: '10px', padding: '16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '500', color: '#633806', marginBottom: '2px' }}>Commission rate</div>
+                <div style={{ fontSize: '12px', color: '#7A4506' }}>Applied to all orders credited to each rep</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {editingRate ? (
+                  <>
+                    <input type="number" value={commissionRate} onChange={e => setCommissionRate(Number(e.target.value))}
+                      style={{ width: '60px', padding: '6px 10px', border: `0.5px solid #FAC775`, borderRadius: '6px', fontSize: '14px', fontWeight: '500', textAlign: 'center', outline: 'none' }} />
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#633806' }}>%</span>
+                    <button onClick={() => { setEditingRate(false); fetchRepPerformance() }}
+                      style={{ padding: '6px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>Save</button>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '22px', fontWeight: '600', color: COLORS.amber }}>{commissionRate}%</span>
+                    <button onClick={() => setEditingRate(true)}
+                      style={{ padding: '6px 14px', background: COLORS.amber2, color: '#633806', border: `0.5px solid #FAC775`, borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>Edit rate</button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
+              {[
+                { label: 'Total reps', value: repPerformance.length },
+                { label: 'Total rep-driven revenue', value: `$${repPerformance.reduce((s,r) => s+r.totalRevenue,0).toFixed(2)}` },
+                { label: 'Total commissions owed', value: `$${repPerformance.reduce((s,r) => s+r.commission,0).toFixed(2)}`, highlight: true },
+                { label: 'Orders this month', value: repPerformance.reduce((s,r) => s+r.mtdOrders,0) },
+              ].map((m,i) => (
+                <div key={i} style={{ background: 'white', borderRadius: '9px', padding: '15px', border: `0.5px solid ${m.highlight ? '#FAC775' : COLORS.border}` }}>
+                  <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
+                  <div style={{ fontSize: '22px', fontWeight: '500', color: m.highlight ? COLORS.amber : COLORS.dark }}>{m.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {repPerformance.length === 0 ? (
+              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '60px', textAlign: 'center', color: COLORS.text3 }}>
+                No rep activity yet. Orders placed through reps will appear here.
+              </div>
+            ) : repPerformance.map((rep, idx) => (
+              <div key={rep.id} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600', flexShrink: 0 }}>
+                    {rep.full_name?.charAt(0)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                      <div style={{ fontSize: '15px', fontWeight: '500', color: COLORS.dark }}>{rep.full_name}</div>
+                      {idx === 0 && rep.totalRevenue > 0 && <span style={{ background: '#FAEEDA', color: '#633806', fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px' }}>⭐ Top performer</span>}
+                      {rep.growth !== null && Number(rep.growth) > 0 && <span style={{ background: COLORS.green3, color: '#085041', fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px' }}>↑ {rep.growth}% vs last month</span>}
+                      {rep.growth !== null && Number(rep.growth) < 0 && <span style={{ background: '#FCEBEB', color: '#791F1F', fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px' }}>↓ {Math.abs(rep.growth)}% vs last month</span>}
+                    </div>
+                    <div style={{ fontSize: '12px', color: COLORS.text3 }}>{rep.company_name} · Territory: {rep.territory || 'Not set'}</div>
+                  </div>
+                  <button onClick={() => setShowChat(true)}
+                    style={{ padding: '7px 14px', background: COLORS.green3, color: COLORS.green, border: `0.5px solid #9FE1CB`, borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                    💬 Message
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '8px', marginBottom: '14px' }}>
+                  {[
+                    { label: 'Total orders', value: rep.totalOrders },
+                    { label: 'Total revenue', value: `$${rep.totalRevenue.toFixed(2)}` },
+                    { label: 'Commission owed', value: `$${rep.commission.toFixed(2)}`, amber: true },
+                    { label: 'Revenue MTD', value: `$${rep.mtdRevenue.toFixed(2)}` },
+                    { label: 'Direct orders', value: rep.directOrders },
+                  ].map((m,i) => (
+                    <div key={i} style={{ background: m.amber ? '#FFF9F0' : COLORS.bg2, borderRadius: '8px', padding: '10px 12px', border: m.amber ? `0.5px solid #FAC775` : 'none' }}>
+                      <div style={{ fontSize: '10px', color: COLORS.text3, marginBottom: '4px' }}>{m.label}</div>
+                      <div style={{ fontSize: '15px', fontWeight: '500', color: m.amber ? COLORS.amber : COLORS.dark }}>{m.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: '#FFF9F0', border: `0.5px solid #FAC775`, borderRadius: '8px', padding: '12px 14px', marginBottom: rep.recentOrders.length > 0 ? '14px' : '0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '500', color: '#633806' }}>Commission breakdown — {commissionRate}% rate</div>
+                    <div style={{ fontSize: '16px', fontWeight: '600', color: COLORS.amber }}>${rep.commission.toFixed(2)} total owed</div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#7A4506' }}>MTD: <strong>${rep.mtdRevenue.toFixed(2)}</strong> → <strong>${rep.mtdCommission.toFixed(2)}</strong></div>
+                    <div style={{ fontSize: '12px', color: '#7A4506' }}>All-time: <strong>${rep.totalRevenue.toFixed(2)}</strong> → <strong>${rep.commission.toFixed(2)}</strong></div>
+                  </div>
+                  {rep.totalRevenue > 0 && (
+                    <div style={{ marginTop: '10px' }}>
+                      <div style={{ height: '6px', background: '#FAE0B3', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.min((rep.mtdRevenue / rep.totalRevenue) * 100, 100)}%`, height: '100%', background: COLORS.amber, borderRadius: '3px' }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {rep.recentOrders.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '500', color: COLORS.text3, letterSpacing: '0.5px', textTransform: 'uppercase', margin: '14px 0 8px' }}>Recent orders via this rep</div>
+                    {rep.recentOrders.map((o, oi) => (
+                      <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: o.is_direct_order ? COLORS.amber : COLORS.green, flexShrink: 0 }} />
+                        <div style={{ flex: 1, fontSize: '12px', color: COLORS.dark }}>{o.product?.name}</div>
+                        <div style={{ fontSize: '11px', color: COLORS.text3 }}>{new Date(o.order_date).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '12px', fontWeight: '500' }}>${Number(o.total_price).toFixed(2)}</div>
+                        <div style={{ fontSize: '11px', fontWeight: '500', color: COLORS.green }}>${(Number(o.total_price) * commissionRate / 100).toFixed(2)} comm.</div>
+                        <span style={{ fontSize: '10px', background: o.is_direct_order ? '#FAEEDA' : COLORS.green3, color: o.is_direct_order ? '#633806' : '#085041', padding: '2px 7px', borderRadius: '20px' }}>
+                          {o.is_direct_order ? 'Direct' : 'Via rep'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {rep.totalOrders === 0 && <div style={{ fontSize: '12px', color: COLORS.text3, textAlign: 'center', padding: '16px 0 4px' }}>No orders yet from this rep's doctors</div>}
+              </div>
+            ))}
+
+            <div style={{ background: COLORS.green3, border: `0.5px solid #9FE1CB`, borderRadius: '8px', padding: '12px 16px', fontSize: '12px', color: '#085041', lineHeight: '1.6' }}>
+              <strong>Note:</strong> Commission rate is set at {commissionRate}% and applied to all orders credited to each rep. Use "Edit rate" above to adjust.
+            </div>
+          </>
         )}
 
-        {/* INSIGHTS */}
+        {/* DEMAND INSIGHTS */}
         {activeSection === 'insights' && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
               {[
                 { label: 'Total orders', value: orders.length },
-                { label: 'Total revenue', value: `$${orders.reduce((s, o) => s + Number(o.total_price), 0).toFixed(2)}` },
+                { label: 'Total revenue', value: `$${orders.reduce((s,o) => s+Number(o.total_price),0).toFixed(2)}` },
                 { label: 'Products', value: products.length },
                 { label: 'Low stock items', value: products.filter(p => p.stock_quantity < 50).length },
-              ].map((m, i) => (
+              ].map((m,i) => (
                 <div key={i} style={{ background: 'white', borderRadius: '9px', padding: '15px', border: `0.5px solid ${COLORS.border}` }}>
                   <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
                   <div style={{ fontSize: '24px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
@@ -410,7 +517,7 @@ export default function SupplierDashboard() {
               <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>Product performance</div>
               {products.map(p => {
                 const productOrders = orders.filter(o => o.product_id === p.id)
-                const revenue = productOrders.reduce((s, o) => s + Number(o.total_price), 0)
+                const revenue = productOrders.reduce((s,o) => s+Number(o.total_price),0)
                 return (
                   <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
                     <div style={{ flex: 1 }}>
@@ -425,125 +532,19 @@ export default function SupplierDashboard() {
             </div>
           </>
         )}
-      </div>
 
-      {/* REP PERFORMANCE */}
-        {activeSection === 'reps' && (
-          <>
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>Rep Performance</div>
-              <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>
-                Revenue, commissions, and order activity across your rep network
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
-              {[
-                { label: 'Total reps', value: repPerformance.length },
-                { label: 'Total rep-driven revenue', value: `$${repPerformance.reduce((s,r) => s+r.totalRevenue,0).toFixed(2)}` },
-                { label: 'Total commissions owed', value: `$${repPerformance.reduce((s,r) => s+r.commission,0).toFixed(2)}` },
-                { label: 'Orders this month', value: repPerformance.reduce((s,r) => s+r.mtdOrders,0) },
-              ].map((m,i) => (
-                <div key={i} style={{ background: 'white', borderRadius: '9px', padding: '15px', border: `0.5px solid ${COLORS.border}` }}>
-                  <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
-                  <div style={{ fontSize: '22px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
-                </div>
-              ))}
-            </div>
-
-            {repPerformance.length === 0 ? (
-              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '60px', textAlign: 'center', color: COLORS.text3, fontSize: '13px' }}>
-                No rep activity yet. Orders placed through reps will appear here.
-              </div>
-            ) : repPerformance.map((rep, idx) => (
-              <div key={rep.id} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '16px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: '600', flexShrink: 0 }}>
-                    {rep.full_name?.charAt(0)}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ fontSize: '15px', fontWeight: '500', color: COLORS.dark }}>{rep.full_name}</div>
-                      {idx === 0 && rep.totalRevenue > 0 && (
-                        <span style={{ background: '#FAEEDA', color: '#633806', fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px' }}>⭐ Top performer</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '12px', color: COLORS.text3 }}>{rep.company_name} · {rep.territory}</div>
-                  </div>
-                  <button onClick={() => setShowChat(true)}
-                    style={{ padding: '7px 14px', background: COLORS.green3, color: COLORS.green, border: `0.5px solid #9FE1CB`, borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
-                    💬 Message
-                  </button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '10px', marginBottom: '16px' }}>
-                  {[
-                    { label: 'Total orders', value: rep.totalOrders },
-                    { label: 'Total revenue', value: `$${rep.totalRevenue.toFixed(2)}` },
-                    { label: 'Commission owed', value: `$${rep.commission.toFixed(2)}` },
-                    { label: 'MTD revenue', value: `$${rep.mtdRevenue.toFixed(2)}` },
-                    { label: 'Direct orders', value: rep.directOrders },
-                  ].map((m,i) => (
-                    <div key={i} style={{ background: COLORS.bg2, borderRadius: '8px', padding: '12px' }}>
-                      <div style={{ fontSize: '10px', color: COLORS.text3, marginBottom: '4px' }}>{m.label}</div>
-                      <div style={{ fontSize: '16px', fontWeight: '500', color: i === 2 ? COLORS.amber : COLORS.dark }}>{m.value}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ background: '#FFF9F0', border: `0.5px solid #FAC775`, borderRadius: '8px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontSize: '11px', fontWeight: '500', color: '#633806', marginBottom: '2px' }}>Commission structure</div>
-                    <div style={{ fontSize: '12px', color: '#7A4506' }}>8% on all orders · ${rep.mtdRevenue.toFixed(2)} MTD revenue → <strong>${rep.mtdCommission.toFixed(2)} MTD commission</strong></div>
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: COLORS.amber }}>${rep.commission.toFixed(2)}</div>
-                </div>
-
-                {rep.recentOrders.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: '11px', fontWeight: '500', color: COLORS.text3, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>Recent orders via this rep</div>
-                    {rep.recentOrders.map((o, oi) => (
-                      <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: o.is_direct_order ? COLORS.amber : COLORS.green, flexShrink: 0 }} />
-                        <div style={{ flex: 1, fontSize: '12px', color: COLORS.dark }}>{o.product?.name}</div>
-                        <div style={{ fontSize: '11px', color: COLORS.text3 }}>{new Date(o.order_date).toLocaleDateString()}</div>
-                        <div style={{ fontSize: '12px', fontWeight: '500' }}>${Number(o.total_price).toFixed(2)}</div>
-                        <span style={{ fontSize: '10px', background: o.is_direct_order ? '#FAEEDA' : COLORS.green3, color: o.is_direct_order ? '#633806' : '#085041', padding: '2px 7px', borderRadius: '20px' }}>
-                          {o.is_direct_order ? 'Direct' : 'Via rep'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {rep.totalOrders === 0 && (
-                  <div style={{ fontSize: '12px', color: COLORS.text3, textAlign: 'center', padding: '12px' }}>No orders yet from this rep's doctors</div>
-                )}
-              </div>
-            ))}
-
-            <div style={{ background: COLORS.green3, border: `0.5px solid #9FE1CB`, borderRadius: '8px', padding: '12px 16px', fontSize: '12px', color: '#085041', lineHeight: '1.6' }}>
-              <strong>Commission note:</strong> Commissions shown are calculated at 8% of order value for all orders credited to each rep — including direct orders placed by doctors. Adjust your commission rate in your account settings when needed.
-            </div>
-          </>
-        )}
-
-      {/* ADMIN */}
+        {/* ADMIN */}
         {activeSection === 'admin' && (
           <>
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>Admin Panel</div>
-              <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>Manage your account, network, and connected doctors</div>
-            </div>
-
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
               <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>Account details</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 {[
                   { label: 'Company name', value: profile?.company_name },
                   { label: 'Account type', value: 'Supplier / 503B' },
-                  { label: 'Active products', value: products.filter(p => p.is_active).length },
+                  { label: 'Active products', value: products.filter(p=>p.is_active).length },
                   { label: 'Total orders received', value: orders.length },
-                ].map((m, i) => (
+                ].map((m,i) => (
                   <div key={i}>
                     <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '4px' }}>{m.label}</div>
                     <div style={{ fontSize: '14px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
@@ -551,19 +552,15 @@ export default function SupplierDashboard() {
                 ))}
               </div>
             </div>
-
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
               <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>Connected reps</div>
               <ConnectedReps supplierId={profile?.id} onMessage={() => setShowChat(true)} />
             </div>
-
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div style={{ fontSize: '13px', fontWeight: '500' }}>Product management</div>
                 <button onClick={() => { setActiveSection('catalog'); setShowAddProduct(true) }}
-                  style={{ padding: '7px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
-                  + Add product
-                </button>
+                  style={{ padding: '7px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>+ Add product</button>
               </div>
               {products.map(p => (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
@@ -571,7 +568,7 @@ export default function SupplierDashboard() {
                     <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{p.name}</div>
                     <div style={{ fontSize: '11px', color: COLORS.text3 }}>{p.category} · ${Number(p.price_per_unit).toFixed(2)}/unit · {p.stock_quantity} units</div>
                   </div>
-                  <div style={{ width: '60px' }}><StockBar quantity={p.stock_quantity} /></div>
+                  <StockBar quantity={p.stock_quantity} />
                   <span style={{ fontSize: '11px', fontWeight: '500', color: p.is_active ? COLORS.green : COLORS.text3 }}>{p.is_active ? 'Active' : 'Inactive'}</span>
                 </div>
               ))}
@@ -579,27 +576,29 @@ export default function SupplierDashboard() {
           </>
         )}
 
-      {/* ADD PRODUCT MODAL */}
-      {showAddProduct && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
-          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
-            <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '6px' }}>Add new product</div>
-            <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>This will appear in your catalog and be visible to connected doctors.</div>
-            <input style={inputStyle} placeholder="Product name" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} />
-            <select style={inputStyle} value={newProduct.category} onChange={e => setNewProduct({ ...newProduct, category: e.target.value })}>
-              {['GLP-1', 'Hormone', 'Dermatology', 'Other'].map(c => <option key={c}>{c}</option>)}
-            </select>
-            <input style={inputStyle} placeholder="Description" value={newProduct.description} onChange={e => setNewProduct({ ...newProduct, description: e.target.value })} />
-            <input style={inputStyle} type="number" placeholder="Price per unit ($)" value={newProduct.price_per_unit} onChange={e => setNewProduct({ ...newProduct, price_per_unit: e.target.value })} />
-            <input style={inputStyle} type="number" placeholder="Initial stock (units)" value={newProduct.stock_quantity} onChange={e => setNewProduct({ ...newProduct, stock_quantity: e.target.value })} />
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <button onClick={() => setShowAddProduct(false)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-              <button onClick={addProduct} style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Add product</button>
+        {/* ADD PRODUCT MODAL */}
+        {showAddProduct && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
+              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '6px' }}>Add new product</div>
+              <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>This will appear in your catalog and be visible to connected doctors.</div>
+              <input style={inputStyle} placeholder="Product name" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
+              <select style={inputStyle} value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})}>
+                {['GLP-1','Hormone','Dermatology','Other'].map(c => <option key={c}>{c}</option>)}
+              </select>
+              <input style={inputStyle} placeholder="Description" value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} />
+              <input style={inputStyle} type="number" placeholder="Price per unit ($)" value={newProduct.price_per_unit} onChange={e => setNewProduct({...newProduct, price_per_unit: e.target.value})} />
+              <input style={inputStyle} type="number" placeholder="Initial stock (units)" value={newProduct.stock_quantity} onChange={e => setNewProduct({...newProduct, stock_quantity: e.target.value})} />
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button onClick={() => setShowAddProduct(false)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                <button onClick={addProduct} style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Add product</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} onUnreadCount={setChatUnread} />
+        )}
+
+        <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} />
+      </div>
     </div>
   )
 }
