@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+
+const ADMIN_EMAILS = ['admin@rovihq.com', 'desiree@rovihq.com']
 
 export default function Login() {
   const [tab, setTab] = useState('signin')
@@ -16,8 +18,17 @@ export default function Login() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const { signIn, signUp, resetPassword } = useAuth()
+  const { signIn, signUp, resetPassword, user, profile } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!user) return
+    if (ADMIN_EMAILS.includes(user.email)) { navigate('/admin'); return }
+    if (!profile) return
+    if (profile.role === 'supplier') navigate('/supplier')
+    else if (profile.role === 'rep') navigate('/rep')
+    else if (profile.role === 'doctor') navigate('/doctor')
+  }, [user, profile, navigate])
 
   const handleSignIn = async (e) => {
     e.preventDefault()
@@ -31,7 +42,7 @@ export default function Login() {
       }
       setLoading(false); return
     }
-    navigate('/')
+    // Navigation handled by useEffect once user + profile resolve
   }
 
   const handleSignUp = async (e) => {
