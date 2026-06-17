@@ -1,9 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
-
-const ADMIN_EMAILS = ['admin@rovihq.com', 'desiree@rovihq.com']
 
 export default function Login() {
   const [tab, setTab] = useState('signin')
@@ -19,58 +16,22 @@ export default function Login() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const { signIn, signUp, resetPassword, user, profile } = useAuth()
+  const { signIn, signUp, resetPassword } = useAuth()
   const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!user) return
-    if (ADMIN_EMAILS.includes(user.email)) { navigate('/admin'); return }
-    if (!profile) return
-    if (profile.role === 'supplier') navigate('/supplier')
-    else if (profile.role === 'rep') navigate('/rep')
-    else if (profile.role === 'doctor') navigate('/doctor')
-  }, [user, profile, navigate])
 
   const handleSignIn = async (e) => {
     e.preventDefault()
-    setError(''); setMessage(''); setLoading(true)
-    const { data, error } = await signIn(email, password)
+    setError(''); setLoading(true)
+    const { error } = await signIn(email, password)
     if (error) {
       if (error.message?.toLowerCase().includes('confirm')) {
         setError('Please confirm your email before signing in. Check your inbox.')
       } else {
-        setError('Auth error: ' + error.message)
+        setError('Incorrect email or password. Please try again.')
       }
       setLoading(false); return
     }
-    if (!data?.session) {
-      setError('No session returned — please confirm your email first.')
-      setLoading(false); return
-    }
-    setMessage('✓ Authenticated. Loading profile...')
-    const userEmail = data.user.email
-    if (ADMIN_EMAILS.includes(userEmail)) { window.location.href = '/admin'; return }
-    const { data: prof, error: profError } = await supabase
-      .from('profiles').select('role').eq('id', data.user.id).single()
-    if (profError) {
-      setError('Profile query error: ' + profError.message)
-      setLoading(false); return
-    }
-    if (!prof) {
-      setError('No profile row found for this account.')
-      setLoading(false); return
-    }
-    if (!prof.role) {
-      setError('Profile found but role is empty. Contact support.')
-      setLoading(false); return
-    }
-    setMessage('✓ Profile found. Role: ' + prof.role + '. Redirecting...')
-    setTimeout(() => {
-      if (prof.role === 'supplier') window.location.href = '/supplier'
-      else if (prof.role === 'rep') window.location.href = '/rep'
-      else if (prof.role === 'doctor') window.location.href = '/doctor'
-      else { setError('Unexpected role value: "' + prof.role + '"'); setLoading(false) }
-    }, 800)
+    navigate('/')
   }
 
   const handleSignUp = async (e) => {
