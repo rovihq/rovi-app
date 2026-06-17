@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 
 const ADMIN_EMAILS = ['admin@rovihq.com', 'desiree@rovihq.com']
 
@@ -33,7 +34,7 @@ export default function Login() {
   const handleSignIn = async (e) => {
     e.preventDefault()
     setError(''); setLoading(true)
-    const { error } = await signIn(email, password)
+    const { data, error } = await signIn(email, password)
     if (error) {
       if (error.message?.toLowerCase().includes('confirm')) {
         setError('Please confirm your email before signing in. Check your inbox.')
@@ -42,7 +43,18 @@ export default function Login() {
       }
       setLoading(false); return
     }
-    // Navigation handled by useEffect once user + profile resolve
+    if (!data?.session) {
+      setError('Please confirm your email before signing in. Check your inbox.')
+      setLoading(false); return
+    }
+    const userEmail = data.user.email
+    if (ADMIN_EMAILS.includes(userEmail)) { window.location.href = '/admin'; return }
+    const { data: prof } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
+    if (!prof) { setError('Profile not found. Please contact support.'); setLoading(false); return }
+    if (prof.role === 'supplier') window.location.href = '/supplier'
+    else if (prof.role === 'rep') window.location.href = '/rep'
+    else if (prof.role === 'doctor') window.location.href = '/doctor'
+    else { setError('Unknown role. Please contact support.'); setLoading(false) }
   }
 
   const handleSignUp = async (e) => {
