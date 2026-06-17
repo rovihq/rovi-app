@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { useAuth } from './context/AuthContext'
 import Login from './pages/Login'
 import SupplierDashboard from './pages/SupplierDashboard'
 import RepDashboard from './pages/RepDashboard'
@@ -44,26 +44,24 @@ const RoleRedirect = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<RoleRedirect />} />
-          <Route path="/admin" element={
-            <AdminRoute><AdminDashboard /></AdminRoute>
-          } />
-          <Route path="/supplier" element={
-            <PrivateRoute role="supplier"><SupplierDashboard /></PrivateRoute>
-          } />
-          <Route path="/rep" element={
-            <PrivateRoute role="rep"><RepDashboard /></PrivateRoute>
-          } />
-          <Route path="/doctor" element={
-            <PrivateRoute role="doctor"><DoctorDashboard /></PrivateRoute>
-          } />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<RoleRedirect />} />
+        <Route path="/admin" element={
+          <AdminRoute><AdminDashboard /></AdminRoute>
+        } />
+        <Route path="/supplier" element={
+          <PrivateRoute role="supplier"><SupplierDashboard /></PrivateRoute>
+        } />
+        <Route path="/rep" element={
+          <PrivateRoute role="rep"><RepDashboard /></PrivateRoute>
+        } />
+        <Route path="/doctor" element={
+          <PrivateRoute role="doctor"><DoctorDashboard /></PrivateRoute>
+        } />
+      </Routes>
+    </BrowserRouter>
   )
 }
 
