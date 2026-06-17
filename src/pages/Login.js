@@ -33,28 +33,44 @@ export default function Login() {
 
   const handleSignIn = async (e) => {
     e.preventDefault()
-    setError(''); setLoading(true)
+    setError(''); setMessage(''); setLoading(true)
     const { data, error } = await signIn(email, password)
     if (error) {
       if (error.message?.toLowerCase().includes('confirm')) {
         setError('Please confirm your email before signing in. Check your inbox.')
       } else {
-        setError('Incorrect email or password. Please try again.')
+        setError('Auth error: ' + error.message)
       }
       setLoading(false); return
     }
     if (!data?.session) {
-      setError('Please confirm your email before signing in. Check your inbox.')
+      setError('No session returned — please confirm your email first.')
       setLoading(false); return
     }
+    setMessage('✓ Authenticated. Loading profile...')
     const userEmail = data.user.email
     if (ADMIN_EMAILS.includes(userEmail)) { window.location.href = '/admin'; return }
-    const { data: prof } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
-    if (!prof) { setError('Profile not found. Please contact support.'); setLoading(false); return }
-    if (prof.role === 'supplier') window.location.href = '/supplier'
-    else if (prof.role === 'rep') window.location.href = '/rep'
-    else if (prof.role === 'doctor') window.location.href = '/doctor'
-    else { setError('Unknown role. Please contact support.'); setLoading(false) }
+    const { data: prof, error: profError } = await supabase
+      .from('profiles').select('role').eq('id', data.user.id).single()
+    if (profError) {
+      setError('Profile query error: ' + profError.message)
+      setLoading(false); return
+    }
+    if (!prof) {
+      setError('No profile row found for this account.')
+      setLoading(false); return
+    }
+    if (!prof.role) {
+      setError('Profile found but role is empty. Contact support.')
+      setLoading(false); return
+    }
+    setMessage('✓ Profile found. Role: ' + prof.role + '. Redirecting...')
+    setTimeout(() => {
+      if (prof.role === 'supplier') window.location.href = '/supplier'
+      else if (prof.role === 'rep') window.location.href = '/rep'
+      else if (prof.role === 'doctor') window.location.href = '/doctor'
+      else { setError('Unexpected role value: "' + prof.role + '"'); setLoading(false) }
+    }, 800)
   }
 
   const handleSignUp = async (e) => {
