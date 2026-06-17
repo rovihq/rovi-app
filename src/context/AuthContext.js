@@ -9,46 +9,64 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      else setLoading(false)
+      if (session?.user) {
+        fetchProfile(session.user.id)
+      } else {
+        setLoading(false)
+      }
     })
 
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         setUser(session?.user ?? null)
         if (session?.user) {
-          setLoading(true)
-          fetchProfile(session.user.id)
+          await fetchProfile(session.user.id)
         } else {
           setProfile(null)
           setLoading(false)
         }
       }
     )
+
     return () => subscription.unsubscribe()
   }, [])
 
   const fetchProfile = async (userId) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data)
-    setLoading(false)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('Profile fetch error:', error)
+        setLoading(false)
+        return
+      }
+      setProfile(data)
+    } catch (err) {
+      console.error('Profile fetch failed:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const signUp = async (email, password, metadata) => {
     return supabase.auth.signUp({
-      email, password,
+      email,
+      password,
       options: { data: metadata }
     })
   }
 
   const signIn = async (email, password) => {
-    return supabase.auth.signInWithPassword({ email, password })
+    const result = await supabase.auth.signInWithPassword({ email, password })
+    return result
   }
 
   const signOut = async () => {
@@ -65,8 +83,13 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{
-      user, profile, loading,
-      signUp, signIn, signOut, resetPassword
+      user,
+      profile,
+      loading,
+      signUp,
+      signIn,
+      signOut,
+      resetPassword
     }}>
       {children}
     </AuthContext.Provider>
