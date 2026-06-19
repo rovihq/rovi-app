@@ -124,11 +124,25 @@ export default function RepDashboard() {
       options: { data: { full_name: newDoctor.full_name, company_name: newDoctor.company_name, phone: newDoctor.phone, role: 'doctor' } }
     })
     if (error) { setInviteMsg('Error: ' + error.message); return }
-    const { data: newUser } = await supabase.from('profiles').select('id').eq('full_name', newDoctor.full_name).single()
-    if (newUser) await supabase.from('profiles').update({ assigned_rep_id: profile.id }).eq('id', newUser.id)
-    setInviteMsg('Doctor invited successfully!')
-    fetchAll()
-    setTimeout(() => { setShowAddDoctor(false); setInviteMsg(''); setNewDoctor({ full_name: '', company_name: '', email: '', phone: '', specialty: 'Hormone / GLP-1' }) }, 2000)
+    // Wait for profile to be created then link
+    setTimeout(async () => {
+      const { data: newUser } = await supabase.from('profiles')
+        .select('id').eq('full_name', newDoctor.full_name).eq('role', 'doctor').single()
+      if (newUser) {
+        // Update assigned_rep_id for backwards compatibility
+        await supabase.from('profiles').update({ assigned_rep_id: profile.id }).eq('id', newUser.id)
+        // Create connection record
+        await supabase.from('doctor_rep_connections').upsert({
+          doctor_id: newUser.id,
+          rep_id: profile.id,
+          status: 'active',
+          connected_at: new Date().toISOString()
+        }, { onConflict: 'doctor_id,rep_id' })
+      }
+      setInviteMsg('Doctor invited successfully!')
+      fetchAll()
+      setTimeout(() => { setShowAddDoctor(false); setInviteMsg(''); setNewDoctor({ full_name: '', company_name: '', email: '', phone: '', specialty: 'Hormone / GLP-1' }) }, 2000)
+    }, 1500)
   }
 
   const placeOrderForDoctor = async () => {
