@@ -33,13 +33,15 @@ const AdminRoute = ({ children }) => {
 
 const RoleRedirect = () => {
   const { user, profile, loading } = useAuth()
-  if (loading) return <Spinner />
+  // Show login page while loading — avoids the stuck spinner for unauthenticated users
+  if (loading) return <Login />
   if (!user) return <Navigate to="/login" replace />
   if (ADMIN_EMAILS.includes(user.email)) return <Navigate to="/admin" replace />
   if (profile?.role === 'supplier') return <Navigate to="/supplier" replace />
   if (profile?.role === 'rep') return <Navigate to="/rep" replace />
   if (profile?.role === 'doctor') return <Navigate to="/doctor" replace />
-  return <Spinner />
+  // Profile still loading — show login
+  return <Navigate to="/login" replace />
 }
 
 function App() {
