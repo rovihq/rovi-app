@@ -12,9 +12,7 @@ const COLORS = {
 }
 
 const Badge = ({ label, color, bg }) => (
-  <span style={{ background: bg, color, fontSize: '10px', fontWeight: '500', padding: '3px 8px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
-    {label}
-  </span>
+  <span style={{ background: bg, color, fontSize: '10px', fontWeight: '500', padding: '3px 8px', borderRadius: '20px', whiteSpace: 'nowrap' }}>{label}</span>
 )
 
 const DoctorStatus = ({ lastOrderDate }) => {
@@ -49,14 +47,18 @@ export default function RepDashboard() {
   const [showChat, setShowChat] = useState(false)
   const [chatContacts, setChatContacts] = useState([])
   const [chatUnread, setChatUnread] = useState(0)
+  // Supplier connections
+  const [mySuppliers, setMySuppliers] = useState([])
+  const [allSuppliers, setAllSuppliers] = useState([])
+  const [connectingSupplier, setConnectingSupplier] = useState(null)
 
   useEffect(() => {
-  if (profile?.id) { fetchAll(); fetchChatContacts() }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [profile?.id])
+    if (profile?.id) { fetchAll(); fetchChatContacts(); fetchSupplierConnections() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id])
 
   const fetchAll = async () => {
-     const [o, d, n, p] = await Promise.all([
+    const [o, d, n, p] = await Promise.all([
       supabase.from('orders').select('*, product:products(name,category), doctor:profiles!orders_doctor_id_fkey(full_name,company_name)').eq('credited_rep_id', profile.id).order('order_date', { ascending: false }),
       supabase.from('profiles').select('*').eq('assigned_rep_id', profile.id).eq('role', 'doctor'),
       supabase.from('notifications').select('*').eq('recipient_id', profile.id).order('created_at', { ascending: false }),
@@ -77,27 +79,51 @@ export default function RepDashboard() {
     setChatContacts([...(d.data || []), ...(s.data || [])])
   }
 
-  const startOrOpenConversation = (contactId) => {
-    setShowChat(true)
+  const fetchSupplierConnections = async () => {
+    const { data: connections } = await supabase
+      .from('rep_supplier_connections')
+      .select('*, supplier:profiles!rep_supplier_connections_supplier_id_fkey(id, full_name, company_name, phone)')
+      .eq('rep_id', profile.id)
+      .eq('status', 'active')
+
+    const { data: suppliers } = await supabase
+      .from('profiles')
+      .select('id, full_name, company_name, phone')
+      .eq('role', 'supplier')
+
+    setMySuppliers(connections || [])
+    setAllSuppliers(suppliers || [])
   }
+
+  const connectToSupplier = async (supplierId) => {
+    setConnectingSupplier(supplierId)
+    const { error } = await supabase.from('rep_supplier_connections').upsert({
+      rep_id: profile.id,
+      supplier_id: supplierId,
+      status: 'active',
+      connected_at: new Date().toISOString()
+    }, { onConflict: 'rep_id,supplier_id' })
+    if (!error) fetchSupplierConnections()
+    setConnectingSupplier(null)
+  }
+
+  const disconnectFromSupplier = async (connectionId) => {
+    await supabase.from('rep_supplier_connections').update({
+      status: 'removed', removed_at: new Date().toISOString()
+    }).eq('id', connectionId)
+    fetchSupplierConnections()
+  }
+
+  const startOrOpenConversation = () => setShowChat(true)
 
   const inviteDoctor = async () => {
     if (!newDoctor.email || !newDoctor.full_name) return
     setInviteMsg('')
     const { error } = await supabase.auth.signUp({
-      email: newDoctor.email,
-      password: 'TempPass123!',
-      options: {
-        data: {
-          full_name: newDoctor.full_name,
-          company_name: newDoctor.company_name,
-          phone: newDoctor.phone,
-          role: 'doctor'
-        }
-      }
+      email: newDoctor.email, password: 'TempPass123!',
+      options: { data: { full_name: newDoctor.full_name, company_name: newDoctor.company_name, phone: newDoctor.phone, role: 'doctor' } }
     })
     if (error) { setInviteMsg('Error: ' + error.message); return }
-    // Link doctor to this rep
     const { data: newUser } = await supabase.from('profiles').select('id').eq('full_name', newDoctor.full_name).single()
     if (newUser) await supabase.from('profiles').update({ assigned_rep_id: profile.id }).eq('id', newUser.id)
     setInviteMsg('Doctor invited successfully!')
@@ -110,31 +136,16 @@ export default function RepDashboard() {
     setOrderPlacing(true)
     const total = Number(selectedProduct.price_per_unit) * orderQty
     const { error } = await supabase.from('orders').insert({
-      product_id: selectedProduct.id,
-      quantity: orderQty,
-      total_price: total,
-      doctor_id: orderDoctor,
-      credited_rep_id: profile.id,
-      supplier_id: selectedProduct.supplier_id,
-      is_direct_order: false,
-      order_date: new Date().toISOString(),
-      notes: orderNotes,
-      status: 'New'
+      product_id: selectedProduct.id, quantity: orderQty, total_price: total,
+      doctor_id: orderDoctor, credited_rep_id: profile.id, supplier_id: selectedProduct.supplier_id,
+      is_direct_order: false, order_date: new Date().toISOString(), notes: orderNotes, status: 'New'
     })
     if (!error) {
       setOrderSuccess(true)
       fetchAll()
-      setTimeout(() => {
-        setShowOrderModal(false)
-        setOrderSuccess(false)
-        setOrderQty(1)
-        setOrderNotes('')
-        setOrderDoctor('')
-        setSelectedProduct(null)
-        setOrderPlacing(false)
-      }, 2000)
+      setTimeout(() => { setShowOrderModal(false); setOrderSuccess(false); setOrderQty(1); setOrderNotes(''); setOrderDoctor(''); setSelectedProduct(null); setOrderPlacing(false) }, 2000)
     } else {
-      setOrderError(error.message || 'Failed to place order. Please try again.')
+      setOrderError(error.message || 'Failed to place order.')
       setOrderPlacing(false)
     }
   }
@@ -151,13 +162,14 @@ export default function RepDashboard() {
   const directOrders = orders.filter(o => o.is_direct_order)
   const unreadCount = notifications.filter(n => !n.is_read).length
   const filteredOrders = orderFilter === 'All' ? orders : orderFilter === 'Direct' ? orders.filter(o => o.is_direct_order) : orders.filter(o => !o.is_direct_order)
-  const getLastOrderDate = (doctorId) => orders
-    .filter(o => o.doctor_id === doctorId)
-    .sort((a, b) => new Date(b.order_date) - new Date(a.order_date))[0]?.order_date
+  const getLastOrderDate = (doctorId) => orders.filter(o => o.doctor_id === doctorId).sort((a, b) => new Date(b.order_date) - new Date(a.order_date))[0]?.order_date
+  const connectedSupplierIds = mySuppliers.map(c => c.supplier_id)
+  const unconnectedSuppliers = allSuppliers.filter(s => !connectedSupplierIds.includes(s.id))
 
-const sidebarItems = [
+  const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard' },
-    { id: 'doctors', label: 'My Doctors', badge: doctors.filter(d => { const lastOrder = getLastOrderDate(d.id); if (!lastOrder) return true; return Math.floor((Date.now() - new Date(lastOrder)) / 86400000) >= 14 }).length },
+    { id: 'doctors', label: 'My Doctors', badge: doctors.filter(d => { const l = getLastOrderDate(d.id); return !l || Math.floor((Date.now() - new Date(l)) / 86400000) >= 14 }).length },
+    { id: 'suppliers', label: 'My Suppliers', badge: mySuppliers.length },
     { id: 'feed', label: 'Order Feed' },
     { id: 'catalog', label: 'Browse Catalog' },
     { id: 'attainment', label: 'Attainment' },
@@ -172,7 +184,7 @@ const sidebarItems = [
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: COLORS.bg2, fontFamily: 'DM Sans, sans-serif' }}>
 
-      {/* DARK SIDEBAR */}
+      {/* SIDEBAR */}
       <div style={{ width: '220px', background: COLORS.dark, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
         <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.dark2}`, fontSize: '20px', fontWeight: '700', color: '#F0EDE6' }}>
           Rovi<span style={{ color: COLORS.teal }}>.</span>
@@ -184,7 +196,7 @@ const sidebarItems = [
           <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6' }}>{profile?.full_name}</div>
           <div style={{ fontSize: '11px', color: '#5F5E5A' }}>Sales rep · {profile?.territory || 'Texas'}</div>
         </div>
-        <div style={{ padding: '12px 10px', flex: 1 }}>
+        <div style={{ padding: '12px 10px', flex: 1, overflowY: 'auto' }}>
           <div style={{ fontSize: '10px', fontWeight: '500', color: '#5F5E5A', letterSpacing: '1px', textTransform: 'uppercase', padding: '8px 8px 4px' }}>My Territory</div>
           {sidebarItems.map(item => (
             <div key={item.id} onClick={() => setActiveSection(item.id)}
@@ -195,6 +207,9 @@ const sidebarItems = [
           ))}
         </div>
         <div style={{ padding: '16px 18px', borderTop: `0.5px solid ${COLORS.dark2}` }}>
+          <button onClick={() => setShowChat(!showChat)} style={{ width: '100%', padding: '9px', background: showChat ? COLORS.teal : 'transparent', border: `0.5px solid #3D3D3A`, borderRadius: '7px', color: showChat ? COLORS.dark : '#5F5E5A', fontSize: '13px', cursor: 'pointer', marginBottom: '8px' }}>
+            💬 Messages {chatUnread > 0 && `(${chatUnread})`}
+          </button>
           <button onClick={signOut} style={{ width: '100%', padding: '9px', background: 'transparent', border: `0.5px solid #3D3D3A`, borderRadius: '7px', color: '#5F5E5A', fontSize: '13px', cursor: 'pointer' }}>Sign out</button>
         </div>
       </div>
@@ -208,21 +223,18 @@ const sidebarItems = [
             <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>
               {activeSection === 'dashboard' && `${profile?.full_name}'s territory — ${profile?.territory || 'Texas'}`}
               {activeSection === 'doctors' && 'My Doctors'}
+              {activeSection === 'suppliers' && 'My Suppliers'}
               {activeSection === 'feed' && 'Order Feed'}
+              {activeSection === 'catalog' && 'Browse Catalog'}
               {activeSection === 'attainment' && 'Monthly Attainment'}
               {activeSection === 'commission' && 'Commission'}
+              {activeSection === 'admin' && 'Admin Panel'}
             </div>
-            <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>
-              {mtdOrders.length} orders credited this month
-            </div>
+            <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>{mtdOrders.length} orders credited this month</div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={() => setShowNotif(!showNotif)} style={{ padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer' }}>
               🔔 {unreadCount > 0 && <span style={{ background: COLORS.amber, color: COLORS.dark, fontSize: '9px', fontWeight: '600', padding: '1px 5px', borderRadius: '10px', marginLeft: '4px' }}>{unreadCount}</span>}
-            </button>
-            <button onClick={() => setShowChat(!showChat)} style={{ padding: '8px 14px', background: COLORS.dark2, border: 'none', borderRadius: '20px', color: '#888780', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              💬 Messages
-              {chatUnread > 0 && <span style={{ background: COLORS.teal, color: COLORS.dark, fontSize: '9px', fontWeight: '700', padding: '1px 5px', borderRadius: '10px' }}>{chatUnread}</span>}
             </button>
             {activeSection === 'doctors' && (
               <button onClick={() => setShowAddDoctor(true)} style={{ padding: '8px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>+ Add doctor</button>
@@ -256,66 +268,60 @@ const sidebarItems = [
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
               {[
-                { label: 'Orders credited (MTD)', value: mtdOrders.length, delta: 'This month', color: COLORS.green },
-                { label: 'Commission earned', value: `$${mtdCommission.toFixed(2)}`, delta: '8% commission rate', color: COLORS.green },
-                { label: 'Active doctors', value: doctors.length, delta: 'In your territory', color: COLORS.green },
-                { label: 'Direct orders credited', value: directOrders.length, delta: 'Doctor ordered direct', color: COLORS.amber },
+                { label: 'Orders credited (MTD)', value: mtdOrders.length, delta: 'This month' },
+                { label: 'Commission earned', value: `$${mtdCommission.toFixed(2)}`, delta: '8% commission rate' },
+                { label: 'Active doctors', value: doctors.length, delta: 'In your territory' },
+                { label: 'Connected suppliers', value: mySuppliers.length, delta: 'Supplier relationships' },
               ].map((m, i) => (
                 <div key={i} style={{ background: 'white', borderRadius: '9px', padding: '15px', border: `0.5px solid ${COLORS.border}` }}>
                   <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
                   <div style={{ fontSize: '24px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
-                  <div style={{ fontSize: '11px', color: m.color, marginTop: '4px' }}>{m.delta}</div>
+                  <div style={{ fontSize: '11px', color: COLORS.green, marginTop: '4px' }}>{m.delta}</div>
                 </div>
               ))}
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px', marginBottom: '12px' }}>
-              {/* Order feed */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
               <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
                   <span style={{ fontSize: '13px', fontWeight: '500' }}>Doctor order feed</span>
-                  <span onClick={() => setActiveSection('feed')} style={{ fontSize: '12px', color: COLORS.green, cursor: 'pointer', fontWeight: '500' }}>View all →</span>
+                  <span onClick={() => setActiveSection('feed')} style={{ fontSize: '12px', color: COLORS.green, cursor: 'pointer' }}>View all →</span>
                 </div>
                 {orders.slice(0, 5).map(o => (
                   <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.dark }}>{o.doctor?.full_name}</div>
-                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>{o.product?.name} · {o.is_direct_order ? 'Direct order' : 'Via rep'}</div>
+                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>{o.product?.name}</div>
                     </div>
                     <div style={{ fontSize: '12px', fontWeight: '500' }}>${Number(o.total_price).toFixed(2)}</div>
                     <span style={{ background: COLORS.green3, color: '#085041', fontSize: '10px', fontWeight: '500', padding: '3px 8px', borderRadius: '20px' }}>✓ Credited</span>
                   </div>
                 ))}
-                {orders.length === 0 && <div style={{ color: COLORS.text3, fontSize: '13px', textAlign: 'center', padding: '20px' }}>No orders yet — invite doctors to get started</div>}
+                {orders.length === 0 && <div style={{ color: COLORS.text3, fontSize: '13px', textAlign: 'center', padding: '20px' }}>No orders yet</div>}
               </div>
-
-              {/* Alerts */}
               <div>
                 <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
                   <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '12px' }}>Monthly attainment</div>
-                  {[
-                    { label: 'GLP-1', pct: Math.min(orders.filter(o => o.product?.category === 'GLP-1').length * 10, 100) },
-                    { label: 'Hormone', pct: Math.min(orders.filter(o => o.product?.category === 'Hormone').length * 10, 100) },
-                    { label: 'Derm', pct: Math.min(orders.filter(o => o.product?.category === 'Dermatology').length * 10, 100) },
-                  ].map(a => (
-                    <div key={a.label} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                      <div style={{ fontSize: '12px', color: COLORS.text2, width: '60px' }}>{a.label}</div>
-                      <div style={{ flex: 1, height: '6px', background: COLORS.bg2, borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${a.pct}%`, height: '100%', background: a.pct > 60 ? COLORS.green2 : COLORS.amber, borderRadius: '3px' }} />
+                  {['GLP-1', 'Hormone', 'Derm'].map(cat => {
+                    const pct = Math.min(orders.filter(o => o.product?.category?.includes(cat)).length * 10, 100)
+                    return (
+                      <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <div style={{ fontSize: '12px', color: COLORS.text2, width: '60px' }}>{cat}</div>
+                        <div style={{ flex: 1, height: '6px', background: COLORS.bg2, borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: pct > 60 ? COLORS.green : COLORS.amber, borderRadius: '3px' }} />
+                        </div>
+                        <div style={{ fontSize: '11px', color: COLORS.dark, minWidth: '30px' }}>{pct}%</div>
                       </div>
-                      <div style={{ fontSize: '11px', color: COLORS.dark, minWidth: '30px' }}>{a.pct}%</div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
                   <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '12px' }}>AI follow-up alerts</div>
-                  {doctors.filter(d => { const last = getLastOrderDate(d.id); return !last || Math.floor((Date.now() - new Date(last)) / 86400000) >= 14 }).slice(0, 3).map(d => (
+                  {doctors.filter(d => { const l = getLastOrderDate(d.id); return !l || Math.floor((Date.now() - new Date(l)) / 86400000) >= 14 }).slice(0, 3).map(d => (
                     <div key={d.id} style={{ display: 'flex', gap: '8px', padding: '8px 10px', background: COLORS.amber2, borderRadius: '7px', marginBottom: '6px' }}>
-                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: COLORS.amber, marginTop: '4px', flexShrink: 0 }} />
                       <div style={{ fontSize: '12px', color: '#633806' }}><strong>{d.full_name}</strong> needs follow up</div>
                     </div>
                   ))}
-                  {doctors.filter(d => { const last = getLastOrderDate(d.id); return !last || Math.floor((Date.now() - new Date(last)) / 86400000) >= 14 }).length === 0 && (
+                  {doctors.filter(d => { const l = getLastOrderDate(d.id); return !l || Math.floor((Date.now() - new Date(l)) / 86400000) >= 14 }).length === 0 && (
                     <div style={{ fontSize: '12px', color: '#085041', background: COLORS.green3, padding: '8px 10px', borderRadius: '7px' }}>✓ All doctors are active</div>
                   )}
                 </div>
@@ -350,6 +356,86 @@ const sidebarItems = [
               )
             })}
           </div>
+        )}
+
+        {/* MY SUPPLIERS */}
+        {activeSection === 'suppliers' && (
+          <>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>My Suppliers</div>
+              <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>Manage your supplier relationships and connections</div>
+            </div>
+
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>
+                Connected suppliers
+                <span style={{ marginLeft: '8px', background: COLORS.green3, color: '#085041', fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px' }}>{mySuppliers.length} active</span>
+              </div>
+              {mySuppliers.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px', color: COLORS.text3, fontSize: '13px' }}>
+                  No supplier connections yet — connect to a supplier below
+                </div>
+              ) : mySuppliers.map(conn => {
+                const s = conn.supplier
+                const supplierOrders = orders.filter(o => o.product?.supplier_id === conn.supplier_id)
+                const supplierRevenue = supplierOrders.reduce((sum, o) => sum + Number(o.total_price), 0)
+                return (
+                  <div key={conn.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: COLORS.green3, color: COLORS.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '600', flexShrink: 0 }}>
+                      {s?.company_name?.charAt(0) || s?.full_name?.charAt(0)}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: '500', color: COLORS.dark }}>{s?.company_name || s?.full_name}</div>
+                        <span style={{ background: COLORS.green3, color: '#085041', fontSize: '10px', fontWeight: '600', padding: '2px 7px', borderRadius: '20px' }}>✓ Connected</span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>
+                        {supplierOrders.length} orders · ${supplierRevenue.toFixed(2)} revenue · Connected {new Date(conn.connected_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => setShowChat(true)}
+                        style={{ padding: '6px 12px', background: COLORS.green3, color: COLORS.green, border: `0.5px solid #9FE1CB`, borderRadius: '6px', fontSize: '11px', fontWeight: '500', cursor: 'pointer' }}>
+                        💬 Message
+                      </button>
+                      <button onClick={() => disconnectFromSupplier(conn.id)}
+                        style={{ padding: '6px 12px', background: '#FCEBEB', color: '#791F1F', border: 'none', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}>
+                        Disconnect
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {unconnectedSuppliers.length > 0 && (
+              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '6px' }}>Available suppliers</div>
+                <div style={{ fontSize: '12px', color: COLORS.text3, marginBottom: '16px' }}>Connect to suppliers you represent to appear in their rep network</div>
+                {unconnectedSuppliers.map(s => (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: COLORS.bg2, color: COLORS.text2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '600', flexShrink: 0 }}>
+                      {s.company_name?.charAt(0) || s.full_name?.charAt(0)}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{s.company_name || s.full_name}</div>
+                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>503B Supplier</div>
+                    </div>
+                    <button onClick={() => connectToSupplier(s.id)} disabled={connectingSupplier === s.id}
+                      style={{ padding: '7px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', opacity: connectingSupplier === s.id ? 0.7 : 1 }}>
+                      {connectingSupplier === s.id ? 'Connecting...' : '+ Connect'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {unconnectedSuppliers.length === 0 && mySuppliers.length > 0 && (
+              <div style={{ background: COLORS.green3, border: `0.5px solid #9FE1CB`, borderRadius: '8px', padding: '14px 16px', fontSize: '13px', color: '#085041', fontWeight: '500' }}>
+                ✓ You're connected to all available suppliers on Rovi
+              </div>
+            )}
+          </>
         )}
 
         {/* ORDER FEED */}
@@ -397,7 +483,7 @@ const sidebarItems = [
                   <div style={{ fontSize: '14px', fontWeight: '500', color: COLORS.dark, marginBottom: '4px' }}>{p.name}</div>
                   <div style={{ fontSize: '12px', color: COLORS.text2, marginBottom: '8px' }}>{p.description}</div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
-                    <div style={{ fontSize: '16px', fontWeight: '500', color: COLORS.dark }}>${Number(p.price_per_unit).toFixed(2)}<span style={{ fontSize: '11px', color: COLORS.text3, fontWeight: '400' }}>/unit</span></div>
+                    <div style={{ fontSize: '16px', fontWeight: '500', color: COLORS.dark }}>${Number(p.price_per_unit).toFixed(2)}<span style={{ fontSize: '11px', color: COLORS.text3 }}>/unit</span></div>
                     <div style={{ fontSize: '11px', color: p.stock_quantity < 20 ? COLORS.red : p.stock_quantity < 50 ? COLORS.amber : COLORS.green, fontWeight: '500' }}>
                       {p.stock_quantity < 20 ? '⚠ Low stock' : p.stock_quantity < 50 ? '○ Limited' : '✓ In stock'}
                     </div>
@@ -408,9 +494,7 @@ const sidebarItems = [
                   </button>
                 </div>
               ))}
-              {products.length === 0 && (
-                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: COLORS.text3 }}>No products available yet</div>
-              )}
+              {products.length === 0 && <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: COLORS.text3 }}>No products available yet</div>}
             </div>
           </>
         )}
@@ -434,16 +518,14 @@ const sidebarItems = [
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px' }}>
               <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>Attainment by category</div>
               {['GLP-1', 'Hormone', 'Dermatology', 'Other'].map(cat => {
-                const catOrders = orders.filter(o => o.product?.category === cat)
-                const pct = Math.min(catOrders.length * 10, 100)
+                const pct = Math.min(orders.filter(o => o.product?.category === cat).length * 10, 100)
                 return (
                   <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
                     <div style={{ fontSize: '13px', color: COLORS.text2, width: '100px' }}>{cat}</div>
                     <div style={{ flex: 1, height: '10px', background: COLORS.bg2, borderRadius: '5px', overflow: 'hidden' }}>
-                      <div style={{ width: `${pct}%`, height: '100%', background: pct > 60 ? COLORS.green : COLORS.amber, borderRadius: '5px', transition: 'width 0.4s' }} />
+                      <div style={{ width: `${pct}%`, height: '100%', background: pct > 60 ? COLORS.green : COLORS.amber, borderRadius: '5px' }} />
                     </div>
                     <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark, minWidth: '40px' }}>{pct}%</div>
-                    <div style={{ fontSize: '12px', color: COLORS.text3, minWidth: '60px' }}>{catOrders.length} orders</div>
                   </div>
                 )
               })}
@@ -475,26 +557,19 @@ const sidebarItems = [
                 <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{o.doctor?.full_name} — {o.product?.name}</div>
-                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>{new Date(o.order_date).toLocaleDateString()} · {o.is_direct_order ? 'Direct order' : 'Via rep'}</div>
+                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>{new Date(o.order_date).toLocaleDateString()}</div>
                   </div>
                   <div style={{ fontSize: '13px', color: COLORS.text2 }}>${Number(o.total_price).toFixed(2)}</div>
                   <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.green }}>${(Number(o.total_price) * 0.08).toFixed(2)}</div>
-                  <span style={{ background: COLORS.green3, color: '#085041', fontSize: '10px', fontWeight: '500', padding: '3px 8px', borderRadius: '20px' }}>Credited</span>
                 </div>
               ))}
             </div>
           </>
         )}
-      </div>
 
-      {/* ADMIN */}
+        {/* ADMIN */}
         {activeSection === 'admin' && (
           <>
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>Admin Panel</div>
-              <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>Manage your territory, doctors, and account settings</div>
-            </div>
-
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
               <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>Territory settings</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -503,6 +578,7 @@ const sidebarItems = [
                   { label: 'Territory', value: profile?.territory || 'Not set' },
                   { label: 'Company', value: profile?.company_name },
                   { label: 'Active doctors', value: doctors.length },
+                  { label: 'Connected suppliers', value: mySuppliers.length },
                 ].map((m, i) => (
                   <div key={i}>
                     <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '4px' }}>{m.label}</div>
@@ -511,149 +587,91 @@ const sidebarItems = [
                 ))}
               </div>
             </div>
-
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div style={{ fontSize: '13px', fontWeight: '500' }}>Doctor management</div>
-                <button onClick={() => setShowAddDoctor(true)}
-                  style={{ padding: '7px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
-                  + Add doctor
-                </button>
+                <button onClick={() => setShowAddDoctor(true)} style={{ padding: '7px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>+ Add doctor</button>
               </div>
-              {doctors.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '30px', color: COLORS.text3, fontSize: '13px' }}>No doctors yet — add your first doctor above</div>
-              ) : doctors.map(d => {
-                const lastOrder = getLastOrderDate(d.id)
-                const daysSince = lastOrder ? Math.floor((Date.now() - new Date(lastOrder)) / 86400000) : null
-                const doctorOrders = orders.filter(o => o.doctor_id === d.id)
-                const doctorRevenue = doctorOrders.reduce((s, o) => s + Number(o.total_price), 0)
-                return (
-                  <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '600', flexShrink: 0 }}>
-                      {d.full_name?.charAt(0)}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{d.full_name}</div>
-                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>
-                        {d.company_name} · {doctorOrders.length} orders · ${doctorRevenue.toFixed(2)} revenue · Last: {lastOrder ? `${daysSince}d ago` : 'Never'}
-                      </div>
-                    </div>
-                    <button onClick={() => startOrOpenConversation(d.id)}
-                      style={{ padding: '6px 12px', background: COLORS.green3, color: COLORS.green, border: `0.5px solid #9FE1CB`, borderRadius: '6px', fontSize: '11px', fontWeight: '500', cursor: 'pointer' }}>
-                      💬 Message
-                    </button>
+              {doctors.map(d => (
+                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600' }}>{d.full_name?.charAt(0)}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{d.full_name}</div>
+                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>{d.company_name}</div>
                   </div>
-                )
-              })}
-            </div>
-
-            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px' }}>
-              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '16px' }}>Account summary</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
-                {[
-                  { label: 'Total orders', value: orders.length },
-                  { label: 'Total revenue', value: `$${orders.reduce((s,o) => s+Number(o.total_price),0).toFixed(2)}` },
-                  { label: 'Total commission', value: `$${(orders.reduce((s,o) => s+Number(o.total_price),0)*0.08).toFixed(2)}` },
-                ].map((m,i) => (
-                  <div key={i} style={{ background: COLORS.bg2, borderRadius: '8px', padding: '14px' }}>
-                    <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '4px' }}>{m.label}</div>
-                    <div style={{ fontSize: '20px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
-                  </div>
-                ))}
-              </div>
+                  <button onClick={() => startOrOpenConversation(d.id)} style={{ padding: '6px 12px', background: COLORS.green3, color: COLORS.green, border: `0.5px solid #9FE1CB`, borderRadius: '6px', fontSize: '11px', fontWeight: '500', cursor: 'pointer' }}>💬 Message</button>
+                </div>
+              ))}
             </div>
           </>
         )}
 
-      {/* ORDER FOR DOCTOR MODAL */}
-      {showOrderModal && selectedProduct && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
-          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '440px', maxWidth: '90vw' }}>
-            {orderSuccess ? (
-              <div style={{ textAlign: 'center', padding: '20px' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
-                <div style={{ fontSize: '16px', fontWeight: '500', color: COLORS.dark, marginBottom: '6px' }}>Order placed!</div>
-                <div style={{ fontSize: '13px', color: COLORS.text2 }}>Credited to your account automatically.</div>
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>Place order for doctor</div>
-                <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>This order will be credited to your account automatically.</div>
-                <div style={{ background: COLORS.bg2, borderRadius: '8px', padding: '12px 14px', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{selectedProduct.name}</div>
-                  <div style={{ fontSize: '12px', color: COLORS.text2, marginTop: '2px' }}>${Number(selectedProduct.price_per_unit).toFixed(2)}/unit · {selectedProduct.category}</div>
+        {/* ORDER MODAL */}
+        {showOrderModal && selectedProduct && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '440px', maxWidth: '90vw' }}>
+              {orderSuccess ? (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+                  <div style={{ fontSize: '16px', fontWeight: '500' }}>Order placed!</div>
+                  <div style={{ fontSize: '13px', color: COLORS.text2, marginTop: '6px' }}>Credited to your account automatically.</div>
                 </div>
-                <div style={{ marginBottom: '10px' }}>
-                  <label style={{ fontSize: '12px', color: COLORS.text2, display: 'block', marginBottom: '5px' }}>Select doctor</label>
-                  <select value={orderDoctor} onChange={e => setOrderDoctor(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', outline: 'none', background: 'white', marginBottom: '10px' }}>
+              ) : (
+                <>
+                  <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>Place order for doctor</div>
+                  <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>Credited to your account automatically.</div>
+                  <div style={{ background: COLORS.bg2, borderRadius: '8px', padding: '12px 14px', marginBottom: '16px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500' }}>{selectedProduct.name}</div>
+                    <div style={{ fontSize: '12px', color: COLORS.text2, marginTop: '2px' }}>${Number(selectedProduct.price_per_unit).toFixed(2)}/unit</div>
+                  </div>
+                  <select value={orderDoctor} onChange={e => setOrderDoctor(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', outline: 'none', background: 'white', marginBottom: '12px' }}>
                     <option value="">Choose a doctor...</option>
-                    {doctors.map(d => (
-                      <option key={d.id} value={d.id}>{d.full_name} — {d.company_name}</option>
-                    ))}
+                    {doctors.map(d => <option key={d.id} value={d.id}>{d.full_name} — {d.company_name}</option>)}
                   </select>
-                </div>
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ fontSize: '12px', color: COLORS.text2, display: 'block', marginBottom: '5px' }}>Quantity</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <button onClick={() => setOrderQty(Math.max(1, orderQty - 1))} style={{ width: '32px', height: '32px', border: `0.5px solid ${COLORS.border}`, borderRadius: '6px', background: 'white', cursor: 'pointer', fontSize: '16px' }}>−</button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <button onClick={() => setOrderQty(Math.max(1, orderQty - 1))} style={{ width: '32px', height: '32px', border: `0.5px solid ${COLORS.border}`, borderRadius: '6px', background: 'white', cursor: 'pointer' }}>−</button>
                     <span style={{ fontSize: '18px', fontWeight: '500', minWidth: '30px', textAlign: 'center' }}>{orderQty}</span>
-                    <button onClick={() => setOrderQty(orderQty + 1)} style={{ width: '32px', height: '32px', border: `0.5px solid ${COLORS.border}`, borderRadius: '6px', background: 'white', cursor: 'pointer', fontSize: '16px' }}>+</button>
-                    <div style={{ marginLeft: 'auto', fontSize: '16px', fontWeight: '500', color: COLORS.dark }}>
-                      ${(Number(selectedProduct.price_per_unit) * orderQty).toFixed(2)}
-                    </div>
+                    <button onClick={() => setOrderQty(orderQty + 1)} style={{ width: '32px', height: '32px', border: `0.5px solid ${COLORS.border}`, borderRadius: '6px', background: 'white', cursor: 'pointer' }}>+</button>
+                    <div style={{ marginLeft: 'auto', fontSize: '16px', fontWeight: '500' }}>${(Number(selectedProduct.price_per_unit) * orderQty).toFixed(2)}</div>
                   </div>
-                </div>
-                <input
-                  placeholder="Notes (optional)"
-                  value={orderNotes}
-                  onChange={e => setOrderNotes(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', marginBottom: '14px', outline: 'none' }}
-                />
-                <div style={{ background: COLORS.green3, borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#085041', marginBottom: '16px' }}>
-                  ✓ This order will be credited to your account — not marked as a direct order
-                </div>
-                {orderError && (
-                  <div style={{ background: '#FCEBEB', color: '#791F1F', borderRadius: '7px', padding: '10px 12px', fontSize: '12px', marginBottom: '12px' }}>
-                    {orderError}
+                  <input placeholder="Notes (optional)" value={orderNotes} onChange={e => setOrderNotes(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', marginBottom: '12px', outline: 'none' }} />
+                  {orderError && <div style={{ background: '#FCEBEB', color: '#791F1F', borderRadius: '7px', padding: '10px 12px', fontSize: '12px', marginBottom: '12px' }}>{orderError}</div>}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => { setShowOrderModal(false); setOrderQty(1); setOrderDoctor(''); setOrderError('') }} style={{ flex: 1, padding: '11px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                    <button onClick={placeOrderForDoctor} disabled={!orderDoctor || orderPlacing} style={{ flex: 2, padding: '11px', background: !orderDoctor ? COLORS.border : COLORS.green, color: !orderDoctor ? COLORS.text3 : 'white', border: 'none', borderRadius: '7px', cursor: orderDoctor ? 'pointer' : 'not-allowed', fontSize: '13px', fontWeight: '500' }}>
+                      {orderPlacing ? 'Placing...' : 'Place order'}
+                    </button>
                   </div>
-                )}
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => { setShowOrderModal(false); setOrderQty(1); setOrderDoctor(''); setOrderError('') }}
-                    style={{ flex: 1, padding: '11px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-                  <button onClick={placeOrderForDoctor} disabled={!orderDoctor || orderPlacing}
-                    style={{ flex: 2, padding: '11px', background: !orderDoctor ? COLORS.border : COLORS.green, color: !orderDoctor ? COLORS.text3 : 'white', border: 'none', borderRadius: '7px', cursor: orderDoctor ? 'pointer' : 'not-allowed', fontSize: '13px', fontWeight: '500' }}>
-                    {orderPlacing ? 'Placing...' : 'Place order'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ADD DOCTOR MODAL */}
-      {showAddDoctor && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
-          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
-            <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '6px' }}>Add doctor to territory</div>
-            <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>All their orders will be credited to you automatically.</div>
-            {inviteMsg && <div style={{ padding: '10px 12px', background: inviteMsg.includes('Error') ? '#FCEBEB' : COLORS.green3, color: inviteMsg.includes('Error') ? '#791F1F' : '#085041', borderRadius: '7px', fontSize: '13px', marginBottom: '12px' }}>{inviteMsg}</div>}
-            <input style={inputStyle} placeholder="Doctor name" value={newDoctor.full_name} onChange={e => setNewDoctor({ ...newDoctor, full_name: e.target.value })} />
-            <input style={inputStyle} placeholder="Practice / clinic name" value={newDoctor.company_name} onChange={e => setNewDoctor({ ...newDoctor, company_name: e.target.value })} />
-            <input style={inputStyle} type="email" placeholder="Email address" value={newDoctor.email} onChange={e => setNewDoctor({ ...newDoctor, email: e.target.value })} />
-            <input style={inputStyle} type="tel" placeholder="Phone number" value={newDoctor.phone} onChange={e => setNewDoctor({ ...newDoctor, phone: e.target.value })} />
-            <select style={inputStyle} value={newDoctor.specialty} onChange={e => setNewDoctor({ ...newDoctor, specialty: e.target.value })}>
-              {['Hormone / GLP-1', 'Med spa', 'Dermatology', 'Primary care', 'Other'].map(s => <option key={s}>{s}</option>)}
-            </select>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <button onClick={() => setShowAddDoctor(false)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-              <button onClick={inviteDoctor} style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Send invite</button>
+                </>
+              )}
             </div>
           </div>
-        </div>
-      )}
-      <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} onUnreadCount={setChatUnread} />
+        )}
+
+        {/* ADD DOCTOR MODAL */}
+        {showAddDoctor && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
+              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '6px' }}>Add doctor to territory</div>
+              <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>All their orders will be credited to you automatically.</div>
+              {inviteMsg && <div style={{ padding: '10px 12px', background: inviteMsg.includes('Error') ? '#FCEBEB' : COLORS.green3, color: inviteMsg.includes('Error') ? '#791F1F' : '#085041', borderRadius: '7px', fontSize: '13px', marginBottom: '12px' }}>{inviteMsg}</div>}
+              <input style={inputStyle} placeholder="Doctor name" value={newDoctor.full_name} onChange={e => setNewDoctor({ ...newDoctor, full_name: e.target.value })} />
+              <input style={inputStyle} placeholder="Practice / clinic name" value={newDoctor.company_name} onChange={e => setNewDoctor({ ...newDoctor, company_name: e.target.value })} />
+              <input style={inputStyle} type="email" placeholder="Email address" value={newDoctor.email} onChange={e => setNewDoctor({ ...newDoctor, email: e.target.value })} />
+              <input style={inputStyle} type="tel" placeholder="Phone number" value={newDoctor.phone} onChange={e => setNewDoctor({ ...newDoctor, phone: e.target.value })} />
+              <select style={inputStyle} value={newDoctor.specialty} onChange={e => setNewDoctor({ ...newDoctor, specialty: e.target.value })}>
+                {['Hormone / GLP-1', 'Med spa', 'Dermatology', 'Primary care', 'Other'].map(s => <option key={s}>{s}</option>)}
+              </select>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowAddDoctor(false)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                <button onClick={inviteDoctor} style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Send invite</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} onUnreadCount={setChatUnread} />
+      </div>
     </div>
   )
 }
