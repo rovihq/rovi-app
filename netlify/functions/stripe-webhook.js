@@ -8,9 +8,9 @@ const supabase = createClient(
 
 // Price ID to account tier mapping
 const PRICE_TO_TIER = {
-  'price_1Ti1ykKYDy8tFUxE9iYXGoZv': { tier: 'standard', role: 'rep' },
-  'price_1Ti1ykKYDy8tFUxE8ieumm9T': { tier: 'standard', role: 'supplier' },
-  'price_1Tjq3mKYDy8tFUxE7QJuGJ4F': { tier: 'enterprise', role: 'supplier' },
+  'price_1Ti1ZfKU7iCToC2TK5PyMExD': { tier: 'standard', role: 'rep' },
+  'price_1Ti1aAKU7iCToC2TMDDa2FOX': { tier: 'standard', role: 'supplier' },
+  'price_1Tk5eCKU7iCToC2TXf25iuWa': { tier: 'enterprise', role: 'supplier' },
 }
 
 exports.handler = async (event) => {
@@ -37,7 +37,6 @@ exports.handler = async (event) => {
     case 'checkout.session.completed': {
       const session = stripeEvent.data.object
       const customerEmail = session.customer_email || session.customer_details?.email
-      const priceId = session.line_items?.data?.[0]?.price?.id
 
       if (!customerEmail) {
         console.error('No email found in session')
@@ -112,7 +111,6 @@ exports.handler = async (event) => {
       // Payment failed — notify but don't downgrade yet
       const invoice = stripeEvent.data.object
       console.log('Payment failed for customer:', invoice.customer)
-      // Could send a notification here in the future
       break
     }
 
