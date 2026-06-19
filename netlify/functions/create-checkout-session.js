@@ -6,12 +6,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { priceId, customerEmail } = JSON.parse(event.body)
+    const { priceId } = JSON.parse(event.body)
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'subscription',
-      customer_email: customerEmail,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${process.env.URL || 'https://rovi-app.netlify.app'}/login?subscribed=true`,
       cancel_url: `${process.env.URL || 'https://rovi-app.netlify.app'}/subscribe`,

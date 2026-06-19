@@ -97,10 +97,7 @@ export default function Subscribe() {
       const response = await fetch('/.netlify/functions/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceId: plan.priceId,
-          customerEmail: user?.email || null,
-        })
+        body: JSON.stringify({ priceId: plan.priceId })
       })
 
       const data = await response.json()
@@ -111,7 +108,6 @@ export default function Subscribe() {
         return
       }
 
-      // Redirect to Stripe Checkout
       window.location.href = data.url
 
     } catch (err) {
