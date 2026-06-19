@@ -1,25 +1,25 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 
 export default function Login() {
-  const [tab, setTab] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [company, setCompany] = useState('')
-  const [role, setRole] = useState('')
   const [resetEmail, setResetEmail] = useState('')
   const [showReset, setShowReset] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const { signIn, signUp, resetPassword } = useAuth()
+  const { signIn } = useAuth()
   const navigate = useNavigate()
+
   const subscribed = new URLSearchParams(window.location.search).get('subscribed')
+  const doctorSignup = new URLSearchParams(window.location.search).get('doctor')
+
+  const [showDoctorForm, setShowDoctorForm] = useState(doctorSignup === 'true')
+  const [doctorForm, setDoctorForm] = useState({ firstName: '', lastName: '', email: '', phone: '', company: '', password: '', confirm: '' })
+  const [doctorLoading, setDoctorLoading] = useState(false)
 
   const handleSignIn = async (e) => {
     e.preventDefault()
@@ -31,38 +31,39 @@ export default function Login() {
       setLoading(false)
       return
     }
-    // Navigate to root — RoleRedirect handles where to send them
     navigate('/')
   }
 
-  const handleSignUp = async (e) => {
+  const handleDoctorSignup = async (e) => {
     e.preventDefault()
     setError('')
-    if (password !== confirmPassword) { setError('Passwords do not match.'); return }
-    if (!role) { setError('Please select your account type.'); return }
-    setLoading(true)
-    const fullName = `${firstName} ${lastName}`.trim()
-    const roleMap = { rep: 'rep', supplier: 'supplier', doctor: 'doctor' }
-    const { error } = await signUp(email, password, {
-      full_name: fullName,
-      phone,
-      company_name: company,
-      role: roleMap[role]
+    if (doctorForm.password !== doctorForm.confirm) { setError('Passwords do not match.'); return }
+    setDoctorLoading(true)
+    const fullName = `${doctorForm.firstName} ${doctorForm.lastName}`.trim()
+    const { error } = await supabase.auth.signUp({
+      email: doctorForm.email,
+      password: doctorForm.password,
+      options: {
+        data: {
+          full_name: fullName,
+          company_name: doctorForm.company,
+          phone: doctorForm.phone,
+          role: 'doctor'
+        }
+      }
     })
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
+    if (error) { setError(error.message); setDoctorLoading(false); return }
     setMessage('Account created! You can now sign in.')
-    setTab('signin')
-    setLoading(false)
+    setShowDoctorForm(false)
+    setDoctorLoading(false)
   }
 
   const handleReset = async (e) => {
     e.preventDefault()
     setLoading(true)
-    const { error } = await resetPassword(resetEmail)
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/login`
+    })
     if (error) setError(error.message)
     else setMessage('Check your email for a password reset link.')
     setLoading(false)
@@ -73,7 +74,7 @@ export default function Login() {
     border: '0.5px solid #3D3D3A', borderRadius: '8px',
     background: '#2C2C2A', color: '#F0EDE6',
     fontSize: '14px', outline: 'none', marginBottom: '10px',
-    fontFamily: 'DM Sans, sans-serif'
+    fontFamily: 'DM Sans, sans-serif', boxSizing: 'border-box'
   }
 
   const btnStyle = {
@@ -98,15 +99,11 @@ export default function Login() {
 
         <div style={{ background: '#1A1A18', border: '0.5px solid #2C2C2A', borderRadius: '16px', padding: '32px' }}>
 
-          {/* Tabs */}
-          {!showReset && (
-            <div style={{ display: 'flex', gap: '4px', background: '#111110', borderRadius: '8px', padding: '4px', marginBottom: '24px' }}>
-              {['signin', 'signup'].map(t => (
-                <button key={t} onClick={() => { setTab(t); setError(''); setMessage('') }}
-                  style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: 'DM Sans, sans-serif', background: tab === t ? '#2C2C2A' : 'transparent', color: tab === t ? '#F0EDE6' : '#5F5E5A' }}>
-                  {t === 'signin' ? 'Sign in' : 'Create account'}
-                </button>
-              ))}
+          {/* Success banner after payment */}
+          {subscribed && !showDoctorForm && (
+            <div style={{ background: '#0F2E24', border: '0.5px solid #1D9E75', color: '#5DCAA5', padding: '14px 16px', borderRadius: '8px', fontSize: '13px', marginBottom: '20px', lineHeight: '1.6', textAlign: 'center' }}>
+              🎉 <strong>Payment successful!</strong><br />
+              Check your email to set your password, then sign in below.
             </div>
           )}
 
@@ -114,63 +111,80 @@ export default function Login() {
           {error && <div style={{ background: '#3D1A1A', color: '#F87171', padding: '10px 12px', borderRadius: '7px', fontSize: '13px', marginBottom: '12px' }}>{error}</div>}
           {message && <div style={{ background: '#0F2E24', color: '#5DCAA5', padding: '10px 12px', borderRadius: '7px', fontSize: '13px', marginBottom: '12px' }}>{message}</div>}
 
-          {/* SIGN IN */}
-          {tab === 'signin' && !showReset && (
-            <form onSubmit={handleSignIn}>
-              {subscribed && (
-                <div style={{ background: '#0F2E24', border: '0.5px solid #1D9E75', color: '#5DCAA5', padding: '12px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', lineHeight: '1.5' }}>
-                  🎉 Payment successful! Check your email to set your password, then sign in below.
+          {/* DOCTOR FREE SIGNUP */}
+          {showDoctorForm ? (
+            <>
+              <div style={{ fontSize: '16px', fontWeight: '500', color: '#F0EDE6', marginBottom: '4px' }}>Create your free account</div>
+              <div style={{ fontSize: '13px', color: '#5F5E5A', marginBottom: '20px' }}>Rovi is always free for doctors and clinics.</div>
+              <form onSubmit={handleDoctorSignup}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input style={{ ...inputStyle, flex: 1 }} placeholder="First name" value={doctorForm.firstName} onChange={e => setDoctorForm({...doctorForm, firstName: e.target.value})} required />
+                  <input style={{ ...inputStyle, flex: 1 }} placeholder="Last name" value={doctorForm.lastName} onChange={e => setDoctorForm({...doctorForm, lastName: e.target.value})} required />
                 </div>
-              )}
-              <input style={inputStyle} type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
-              <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
-              <button type="submit" style={btnStyle} disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</button>
-              <button type="button" onClick={() => { setShowReset(true); setError(''); setMessage('') }}
+                <input style={inputStyle} type="email" placeholder="Email address" value={doctorForm.email} onChange={e => setDoctorForm({...doctorForm, email: e.target.value})} required />
+                <input style={inputStyle} type="tel" placeholder="Phone number" value={doctorForm.phone} onChange={e => setDoctorForm({...doctorForm, phone: e.target.value})} required />
+                <input style={inputStyle} placeholder="Practice / clinic name" value={doctorForm.company} onChange={e => setDoctorForm({...doctorForm, company: e.target.value})} required />
+                <input style={inputStyle} type="password" placeholder="Create password" value={doctorForm.password} onChange={e => setDoctorForm({...doctorForm, password: e.target.value})} required />
+                <input style={inputStyle} type="password" placeholder="Confirm password" value={doctorForm.confirm} onChange={e => setDoctorForm({...doctorForm, confirm: e.target.value})} required />
+                <button type="submit" style={{ ...btnStyle, background: '#EF9F27', color: '#0D0D0B' }} disabled={doctorLoading}>
+                  {doctorLoading ? 'Creating account...' : 'Create free account'}
+                </button>
+              </form>
+              <button onClick={() => setShowDoctorForm(false)}
+                style={{ width: '100%', padding: '10px', background: 'transparent', color: '#5F5E5A', border: 'none', fontSize: '13px', cursor: 'pointer', marginTop: '8px', fontFamily: 'DM Sans, sans-serif' }}>
+                ← Back to sign in
+              </button>
+            </>
+
+          ) : showReset ? (
+            <>
+              <div style={{ fontSize: '16px', fontWeight: '500', color: '#F0EDE6', marginBottom: '8px' }}>Reset password</div>
+              <div style={{ fontSize: '13px', color: '#888780', marginBottom: '20px' }}>Enter your email and we'll send you a reset link.</div>
+              <form onSubmit={handleReset}>
+                <input style={inputStyle} type="email" placeholder="Email address" value={resetEmail} onChange={e => setResetEmail(e.target.value)} required />
+                <button type="submit" style={btnStyle} disabled={loading}>{loading ? 'Sending...' : 'Send reset link'}</button>
+              </form>
+              <button onClick={() => { setShowReset(false); setError(''); setMessage('') }}
+                style={{ width: '100%', padding: '10px', background: 'transparent', color: '#5F5E5A', border: 'none', fontSize: '13px', cursor: 'pointer', marginTop: '8px', fontFamily: 'DM Sans, sans-serif' }}>
+                ← Back to sign in
+              </button>
+            </>
+
+          ) : (
+            <>
+              <div style={{ fontSize: '16px', fontWeight: '500', color: '#F0EDE6', marginBottom: '20px' }}>Sign in to Rovi</div>
+              <form onSubmit={handleSignIn}>
+                <input style={inputStyle} type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
+                <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+                <button type="submit" style={btnStyle} disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</button>
+              </form>
+              <button onClick={() => { setShowReset(true); setError('') }}
                 style={{ width: '100%', padding: '10px', background: 'transparent', color: '#5F5E5A', border: 'none', fontSize: '13px', cursor: 'pointer', marginTop: '8px', fontFamily: 'DM Sans, sans-serif' }}>
                 Forgot password?
               </button>
-            </form>
-          )}
 
-          {/* SIGN UP */}
-          {tab === 'signup' && !showReset && (
-            <form onSubmit={handleSignUp}>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input style={{ ...inputStyle, flex: 1 }} type="text" placeholder="First name" value={firstName} onChange={e => setFirstName(e.target.value)} required />
-                <input style={{ ...inputStyle, flex: 1 }} type="text" placeholder="Last name" value={lastName} onChange={e => setLastName(e.target.value)} required />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
+                <div style={{ flex: 1, height: '0.5px', background: '#2C2C2A' }} />
+                <span style={{ fontSize: '12px', color: '#3D3D3A' }}>New to Rovi?</span>
+                <div style={{ flex: 1, height: '0.5px', background: '#2C2C2A' }} />
               </div>
-              <input style={inputStyle} type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
-              <input style={inputStyle} type="tel" placeholder="Phone number" value={phone} onChange={e => setPhone(e.target.value)} required />
-              <input style={inputStyle} type="text" placeholder="Company / Practice name" value={company} onChange={e => setCompany(e.target.value)} required />
-              <select style={{ ...inputStyle, color: role ? '#F0EDE6' : '#5F5E5A' }} value={role} onChange={e => setRole(e.target.value)} required>
-                <option value="">I am a...</option>
-                <option value="rep">Sales Rep</option>
-                <option value="supplier">Supplier / 503B Facility</option>
-                <option value="doctor">Doctor / Clinic</option>
-              </select>
-              <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
-              <input style={inputStyle} type="password" placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
-              <button type="submit" style={btnStyle} disabled={loading}>{loading ? 'Creating account...' : 'Create account'}</button>
-            </form>
-          )}
 
-          {/* FORGOT PASSWORD */}
-          {showReset && (
-            <form onSubmit={handleReset}>
-              <div style={{ fontSize: '16px', fontWeight: '500', color: '#F0EDE6', marginBottom: '8px' }}>Reset password</div>
-              <div style={{ fontSize: '13px', color: '#888780', marginBottom: '20px' }}>Enter your email and we'll send you a reset link.</div>
-              <input style={inputStyle} type="email" placeholder="Email address" value={resetEmail} onChange={e => setResetEmail(e.target.value)} required />
-              <button type="submit" style={btnStyle} disabled={loading}>{loading ? 'Sending...' : 'Send reset link'}</button>
-              <button type="button" onClick={() => { setShowReset(false); setError(''); setMessage('') }}
-                style={{ width: '100%', padding: '10px', background: 'transparent', color: '#5F5E5A', border: 'none', fontSize: '13px', cursor: 'pointer', marginTop: '8px', fontFamily: 'DM Sans, sans-serif' }}>
-                Back to sign in
-              </button>
-            </form>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button onClick={() => navigate('/subscribe')}
+                  style={{ width: '100%', padding: '11px', background: 'transparent', border: '0.5px solid #5DCAA5', borderRadius: '8px', color: '#5DCAA5', fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                  Get started as a Rep or Supplier →
+                </button>
+                <button onClick={() => setShowDoctorForm(true)}
+                  style={{ width: '100%', padding: '11px', background: 'transparent', border: '0.5px solid #EF9F27', borderRadius: '8px', color: '#EF9F27', fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                  Sign up free as a Doctor →
+                </button>
+              </div>
+            </>
           )}
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', color: '#3D3D3A' }}>
-          Early access · Texas · rovi-hq.netlify.app
+          Early access · Texas · rovihq.com
         </div>
       </div>
     </div>
