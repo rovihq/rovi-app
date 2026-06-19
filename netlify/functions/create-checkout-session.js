@@ -12,7 +12,7 @@ exports.handler = async (event) => {
       payment_method_types: ['card'],
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.URL || 'https://rovi-app.netlify.app'}/login?subscribed=true`,
+      success_url: `${process.env.URL || 'https://rovi-app.netlify.app'}/payment-success`,
       cancel_url: `${process.env.URL || 'https://rovi-app.netlify.app'}/subscribe`,
     })
 

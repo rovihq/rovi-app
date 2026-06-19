@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Login from './pages/Login'
 import Subscribe from './pages/Subscribe'
+import PaymentSuccess from './pages/PaymentSuccess'
 import SupplierDashboard from './pages/SupplierDashboard'
 import RepDashboard from './pages/RepDashboard'
 import DoctorDashboard from './pages/DoctorDashboard'
@@ -51,6 +52,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/subscribe" element={<Subscribe />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/" element={<RoleRedirect />} />
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/supplier" element={<PrivateRoute role="supplier"><SupplierDashboard /></PrivateRoute>} />
