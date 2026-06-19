@@ -89,22 +89,22 @@ export default function Subscribe() {
   }
 
   const roleOptions = [
-    { id: 'rep', label: 'Sales Rep', sub: '$75/month', color: '#3C3489', bg: COLORS.purple2 },
-    { id: 'supplier', label: '503B Supplier', sub: '$299/month', color: COLORS.green, bg: COLORS.green3 },
-    { id: 'enterprise', label: '503B Enterprise', sub: '$999/month', color: COLORS.teal, bg: '#0F2E28' },
-    { id: 'doctor', label: 'Doctor / Clinic', sub: 'Free forever', color: COLORS.amber, bg: '#2E1F00' },
+    { id: 'rep', label: 'Sales Rep', sub: '$75/month', color: '#3C3489', bg: '#F0EFFF' },
+    { id: 'supplier', label: '503B Supplier', sub: '$299/month', color: COLORS.green, bg: '#E8F7F1' },
+    { id: 'enterprise', label: '503B Enterprise', sub: '$999/month', color: '#0A7A6A', bg: '#E0F5F0' },
+    { id: 'doctor', label: 'Doctor / Clinic', sub: 'Free forever', color: '#B07A00', bg: '#FFF8E6' },
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: COLORS.dark, fontFamily: 'DM Sans, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#F7F5F0', fontFamily: 'DM Sans, sans-serif' }}>
 
       {/* HEADER */}
-      <div style={{ padding: '20px 40px', borderBottom: `0.5px solid ${COLORS.dark2}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: '22px', fontWeight: '700', color: '#F0EDE6' }}>
+      <div style={{ padding: '20px 40px', borderBottom: `0.5px solid #E2E0D8`, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: '22px', fontWeight: '700', color: '#1C1C1A' }}>
           Rovi<span style={{ color: COLORS.teal }}>.</span>
         </div>
         <button onClick={() => navigate('/login')}
-          style={{ padding: '8px 16px', background: 'transparent', border: `0.5px solid #3D3D3A`, borderRadius: '7px', color: '#888780', fontSize: '13px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+          style={{ padding: '8px 16px', background: 'transparent', border: `0.5px solid #C8C6BE`, borderRadius: '7px', color: '#5F5E5A', fontSize: '13px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
           Already have an account? Sign in
         </button>
       </div>
@@ -113,18 +113,18 @@ export default function Subscribe() {
 
         {/* HERO */}
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <div style={{ fontSize: '11px', fontWeight: '500', color: COLORS.teal, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '14px' }}>Get started</div>
-          <div style={{ fontSize: '34px', fontWeight: '600', color: '#F0EDE6', marginBottom: '12px', lineHeight: '1.2' }}>
+          <div style={{ fontSize: '11px', fontWeight: '500', color: COLORS.green, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '14px' }}>Get started</div>
+          <div style={{ fontSize: '34px', fontWeight: '600', color: '#1C1C1A', marginBottom: '12px', lineHeight: '1.2' }}>
             The platform compounding runs on
           </div>
-          <div style={{ fontSize: '15px', color: '#888780' }}>
+          <div style={{ fontSize: '15px', color: '#5F5E5A' }}>
             Select your role to see your plan and get started
           </div>
         </div>
 
         {/* ROLE SELECTOR */}
         <div style={{ marginBottom: '40px' }}>
-          <div style={{ fontSize: '13px', fontWeight: '500', color: '#888780', marginBottom: '14px', textAlign: 'center' }}>I am a...</div>
+          <div style={{ fontSize: '13px', fontWeight: '500', color: '#5F5E5A', marginBottom: '14px', textAlign: 'center' }}>I am a...</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '12px' }}>
             {roleOptions.map(r => (
               <button key={r.id} onClick={() => {
@@ -133,13 +133,14 @@ export default function Subscribe() {
                 setError('')
               }}
                 style={{
-                  padding: '18px 14px', borderRadius: '10px', cursor: 'pointer',
-                  border: selectedRole === r.id ? `1.5px solid ${r.color}` : `0.5px solid #2C2C2A`,
-                  background: selectedRole === r.id ? r.bg : '#161614',
-                  textAlign: 'center', transition: 'all 0.15s', fontFamily: 'DM Sans, sans-serif'
+                  padding: '20px 14px', borderRadius: '10px', cursor: 'pointer',
+                  border: selectedRole === r.id ? `2px solid ${r.color}` : `0.5px solid #E2E0D8`,
+                  background: selectedRole === r.id ? r.bg : 'white',
+                  textAlign: 'center', transition: 'all 0.15s', fontFamily: 'DM Sans, sans-serif',
+                  boxShadow: selectedRole === r.id ? `0 4px 16px ${r.color}25` : '0 1px 4px rgba(0,0,0,0.06)'
                 }}>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: selectedRole === r.id ? r.color : '#F0EDE6', marginBottom: '4px' }}>{r.label}</div>
-                <div style={{ fontSize: '12px', color: selectedRole === r.id ? r.color : '#5F5E5A', opacity: 0.8 }}>{r.sub}</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: selectedRole === r.id ? r.color : '#1C1C1A', marginBottom: '5px' }}>{r.label}</div>
+                <div style={{ fontSize: '12px', color: selectedRole === r.id ? r.color : '#A8A8A2', fontWeight: '500' }}>{r.sub}</div>
               </button>
             ))}
           </div>
@@ -150,25 +151,25 @@ export default function Subscribe() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
 
             {/* LEFT — Plan summary */}
-            <div style={{ background: '#161614', border: `0.5px solid ${plan.color}`, borderRadius: '14px', padding: '28px', boxShadow: `0 0 40px ${plan.color}15` }}>
-              <span style={{ background: plan.color, color: plan.id === 'rep' ? 'white' : COLORS.dark, fontSize: '10px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', letterSpacing: '0.5px', display: 'inline-block', marginBottom: '20px' }}>
+            <div style={{ background: 'white', border: `1.5px solid ${plan.color}`, borderRadius: '14px', padding: '28px', boxShadow: `0 4px 24px ${plan.color}20` }}>
+              <span style={{ background: plan.color, color: plan.id === 'rep' ? 'white' : '#0D0D0B', fontSize: '10px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', letterSpacing: '0.5px', display: 'inline-block', marginBottom: '20px' }}>
                 Selected plan
               </span>
-              <div style={{ fontSize: '22px', fontWeight: '600', color: '#F0EDE6', marginBottom: '6px' }}>{plan.name}</div>
+              <div style={{ fontSize: '22px', fontWeight: '600', color: '#1C1C1A', marginBottom: '6px' }}>{plan.name}</div>
               <div style={{ fontSize: '13px', color: '#5F5E5A', marginBottom: '24px', lineHeight: '1.5' }}>{plan.tagline}</div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', marginBottom: '28px' }}>
-                <div style={{ fontSize: '40px', fontWeight: '600', color: '#F0EDE6', lineHeight: 1 }}>${plan.price}</div>
-                <div style={{ fontSize: '14px', color: '#5F5E5A', marginBottom: '6px' }}>/month</div>
+                <div style={{ fontSize: '40px', fontWeight: '600', color: '#1C1C1A', lineHeight: 1 }}>${plan.price}</div>
+                <div style={{ fontSize: '14px', color: '#A8A8A2', marginBottom: '6px' }}>/month</div>
               </div>
 
-              <div style={{ borderTop: `0.5px solid #2C2C2A`, paddingTop: '20px' }}>
-                <div style={{ fontSize: '11px', fontWeight: '500', color: '#5F5E5A', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '14px' }}>What's included</div>
+              <div style={{ borderTop: `0.5px solid #E2E0D8`, paddingTop: '20px' }}>
+                <div style={{ fontSize: '11px', fontWeight: '600', color: '#A8A8A2', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '14px' }}>What's included</div>
                 {plan.features.map((f, i) => (
                   <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
                     <span style={{ color: plan.color, fontSize: '14px', flexShrink: 0, marginTop: '1px' }}>✓</span>
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6', marginBottom: '1px' }}>{f.title}</div>
-                      <div style={{ fontSize: '11px', color: '#5F5E5A', lineHeight: '1.4' }}>{f.desc}</div>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A', marginBottom: '1px' }}>{f.title}</div>
+                      <div style={{ fontSize: '11px', color: '#A8A8A2', lineHeight: '1.4' }}>{f.desc}</div>
                     </div>
                   </div>
                 ))}
@@ -178,8 +179,8 @@ export default function Subscribe() {
             {/* RIGHT — CTA */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              <div style={{ background: '#161614', border: `0.5px solid #2C2C2A`, borderRadius: '14px', padding: '24px' }}>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#F0EDE6', marginBottom: '16px' }}>How it works</div>
+              <div style={{ background: 'white', border: `0.5px solid #E2E0D8`, borderRadius: '14px', padding: '24px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1C1C1A', marginBottom: '16px' }}>How it works</div>
                 {[
                   { step: '1', text: 'Click "Get started" below', sub: "You'll be taken to Stripe's secure payment page" },
                   { step: '2', text: 'Enter your email and payment details', sub: 'Your account is created automatically after payment' },
@@ -187,21 +188,21 @@ export default function Subscribe() {
                   { step: '4', text: 'Log in and get started', sub: 'Your dashboard is ready immediately' },
                 ].map((s, i) => (
                   <div key={i} style={{ display: 'flex', gap: '12px', marginBottom: '14px' }}>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: plan.color, color: plan.id === 'rep' ? 'white' : COLORS.dark, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '600', flexShrink: 0 }}>{s.step}</div>
+                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: plan.color, color: plan.id === 'rep' ? 'white' : '#0D0D0B', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '600', flexShrink: 0 }}>{s.step}</div>
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6' }}>{s.text}</div>
-                      <div style={{ fontSize: '11px', color: '#5F5E5A', marginTop: '2px' }}>{s.sub}</div>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A' }}>{s.text}</div>
+                      <div style={{ fontSize: '11px', color: '#A8A8A2', marginTop: '2px' }}>{s.sub}</div>
                     </div>
                   </div>
                 ))}
               </div>
 
               <button onClick={handleGetStarted} disabled={loading}
-                style={{ padding: '16px', background: plan.color, color: plan.id === 'rep' ? 'white' : COLORS.dark, border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', opacity: loading ? 0.7 : 1 }}>
+                style={{ padding: '16px', background: plan.color, color: plan.id === 'rep' ? 'white' : '#0D0D0B', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', opacity: loading ? 0.7 : 1, boxShadow: `0 4px 16px ${plan.color}40` }}>
                 {loading ? 'Redirecting to Stripe...' : `Get started — $${plan.price}/mo`}
               </button>
 
-              {error && <div style={{ background: '#3D1A1A', color: '#F87171', padding: '12px', borderRadius: '8px', fontSize: '13px' }}>{error}</div>}
+              {error && <div style={{ background: '#FCEBEB', color: '#791F1F', padding: '12px', borderRadius: '8px', fontSize: '13px' }}>{error}</div>}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px' }}>
                 {[
@@ -209,7 +210,7 @@ export default function Subscribe() {
                   { icon: '↩', text: 'Cancel anytime' },
                   { icon: '💳', text: 'No setup fees' },
                 ].map((t, i) => (
-                  <div key={i} style={{ background: '#161614', border: `0.5px solid #2C2C2A`, borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                  <div key={i} style={{ background: 'white', border: `0.5px solid #E2E0D8`, borderRadius: '8px', padding: '10px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
                     <div style={{ fontSize: '16px', marginBottom: '4px' }}>{t.icon}</div>
                     <div style={{ fontSize: '11px', color: '#5F5E5A' }}>{t.text}</div>
                   </div>
@@ -220,14 +221,14 @@ export default function Subscribe() {
         )}
 
         {!plan && (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#3D3D3A', fontSize: '14px' }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: '#A8A8A2', fontSize: '14px' }}>
             Select your role above to see your plan details
           </div>
         )}
 
-        <div style={{ textAlign: 'center', fontSize: '12px', color: '#3D3D3A', marginTop: '16px' }}>
+        <div style={{ textAlign: 'center', fontSize: '12px', color: '#A8A8A2', marginTop: '16px' }}>
           Doctors are always free — sign up via your rep's invite or{' '}
-          <span onClick={() => navigate('/login?doctor=true')} style={{ color: COLORS.amber, cursor: 'pointer' }}>create a free account here</span>
+          <span onClick={() => navigate('/login?doctor=true')} style={{ color: COLORS.amber, cursor: 'pointer', fontWeight: '500' }}>create a free account here</span>
         </div>
       </div>
     </div>
