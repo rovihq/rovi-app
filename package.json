@@ -15,6 +15,7 @@
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.17.0",
     "react-scripts": "5.0.1",
+    "stripe": "^17.7.0",
     "tailwindcss": "^4.3.1",
     "web-vitals": "^2.1.4"
   },
