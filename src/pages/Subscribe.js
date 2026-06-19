@@ -1,15 +1,12 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { loadStripe } from '@stripe/stripe-js'
-
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY)
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
-  dark2: '#2C2C2A', bg: '#F7F5F0', bg2: '#F0EDE6',
-  border: '#E2E0D8', text2: '#5F5E5A', text3: '#A8A8A2',
-  amber: '#EF9F27', amber2: '#FAEEDA', green3: '#E8F7F1'
+  dark2: '#2C2C2A', bg2: '#F0EDE6', border: '#E2E0D8',
+  text2: '#5F5E5A', text3: '#A8A8A2', amber: '#EF9F27',
+  amber2: '#FAEEDA', green3: '#E8F7F1'
 }
 
 const PLANS = [
@@ -17,7 +14,6 @@ const PLANS = [
     id: 'doctor',
     name: 'Doctor',
     price: 0,
-    period: 'forever',
     priceId: null,
     color: COLORS.amber,
     badge: 'Always free',
@@ -34,7 +30,6 @@ const PLANS = [
     id: 'rep',
     name: 'Rep Seat',
     price: 75,
-    period: 'month',
     priceId: 'price_1Ti1ykKYDy8tFUxE9iYXGoZv',
     color: '#3C3489',
     badge: 'Most popular',
@@ -52,7 +47,6 @@ const PLANS = [
     id: 'supplier',
     name: 'Supplier',
     price: 299,
-    period: 'month',
     priceId: 'price_1Ti1ykKYDy8tFUxE8ieumm9T',
     color: COLORS.green,
     badge: 'For 503B facilities',
@@ -70,7 +64,6 @@ const PLANS = [
     id: 'enterprise',
     name: 'Enterprise',
     price: 999,
-    period: 'month',
     priceId: 'price_1Tjq3mKYDy8tFUxE7QJuGJ4F',
     color: COLORS.teal,
     badge: 'Full platform',
@@ -102,19 +95,30 @@ export default function Subscribe() {
     setError('')
 
     try {
-      const stripe = await stripePromise
-      const { error } = await stripe.redirectToCheckout({
-        lineItems: [{ price: plan.priceId, quantity: 1 }],
-        mode: 'subscription',
-        successUrl: `${window.location.origin}/?subscribed=true`,
-        cancelUrl: `${window.location.origin}/subscribe`,
-        customerEmail: user.email,
+      const response = await fetch('/.netlify/functions/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          priceId: plan.priceId,
+          customerEmail: user.email,
+        })
       })
-      if (error) setError(error.message)
+
+      const data = await response.json()
+
+      if (data.error) {
+        setError(data.error)
+        setLoading(null)
+        return
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url
+
     } catch (err) {
       setError('Something went wrong. Please try again.')
+      setLoading(null)
     }
-    setLoading(null)
   }
 
   const currentRole = profile?.role
@@ -158,23 +162,16 @@ export default function Subscribe() {
             <div key={plan.id} style={{
               background: plan.id === 'enterprise' ? '#1A1A18' : '#161614',
               border: `0.5px solid ${isCurrent ? plan.color : plan.id === 'enterprise' ? COLORS.teal : '#2C2C2A'}`,
-              borderRadius: '14px', padding: '28px',
-              position: 'relative',
+              borderRadius: '14px', padding: '28px', position: 'relative',
               boxShadow: plan.id === 'enterprise' ? `0 0 40px rgba(93,202,165,0.08)` : 'none'
             }}>
-
-              {/* Badge */}
               <div style={{ marginBottom: '20px' }}>
                 <span style={{ background: plan.color, color: plan.id === 'rep' ? 'white' : COLORS.dark, fontSize: '10px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', letterSpacing: '0.5px' }}>
                   {isCurrent ? '✓ Your current plan' : plan.badge}
                 </span>
               </div>
-
-              {/* Plan name */}
               <div style={{ fontSize: '18px', fontWeight: '600', color: '#F0EDE6', marginBottom: '6px' }}>{plan.name}</div>
               <div style={{ fontSize: '12px', color: '#5F5E5A', marginBottom: '20px', lineHeight: '1.5' }}>{plan.description}</div>
-
-              {/* Price */}
               <div style={{ marginBottom: '24px' }}>
                 {plan.price === 0 ? (
                   <div style={{ fontSize: '32px', fontWeight: '600', color: COLORS.amber }}>Free</div>
@@ -186,7 +183,6 @@ export default function Subscribe() {
                 )}
               </div>
 
-              {/* CTA */}
               {plan.price === 0 ? (
                 <button onClick={() => navigate('/login')}
                   style={{ width: '100%', padding: '11px', background: COLORS.amber2, color: '#633806', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', marginBottom: '24px' }}>
@@ -200,11 +196,10 @@ export default function Subscribe() {
               ) : (
                 <button onClick={() => handleSubscribe(plan)} disabled={isLoading}
                   style={{ width: '100%', padding: '11px', background: plan.id === 'enterprise' ? COLORS.teal : plan.color, color: plan.id === 'enterprise' || plan.id === 'rep' ? COLORS.dark : 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', marginBottom: '24px', opacity: isLoading ? 0.7 : 1 }}>
-                  {isLoading ? 'Redirecting...' : plan.id === 'enterprise' ? 'Contact us' : `Subscribe — $${plan.price}/mo`}
+                  {isLoading ? 'Redirecting to Stripe...' : plan.id === 'enterprise' ? 'Contact us' : `Subscribe — $${plan.price}/mo`}
                 </button>
               )}
 
-              {/* Features */}
               <div style={{ borderTop: `0.5px solid #2C2C2A`, paddingTop: '20px' }}>
                 {plan.features.map((f, i) => (
                   <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'flex-start' }}>
@@ -218,14 +213,12 @@ export default function Subscribe() {
         })}
       </div>
 
-      {/* ERROR */}
       {error && (
         <div style={{ textAlign: 'center', padding: '0 40px 40px' }}>
           <div style={{ background: '#3D1A1A', color: '#F87171', padding: '12px 20px', borderRadius: '8px', fontSize: '13px', display: 'inline-block' }}>{error}</div>
         </div>
       )}
 
-      {/* FOOTER NOTE */}
       <div style={{ textAlign: 'center', padding: '0 40px 60px', color: '#3D3D3A', fontSize: '12px' }}>
         Secured by Stripe · Cancel anytime · No setup fees · Texas-first early access
       </div>
