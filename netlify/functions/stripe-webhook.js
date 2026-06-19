@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-// Price ID to account tier mapping
+// Test mode price IDs
 const PRICE_TO_TIER = {
   'price_1Ti1ZfKU7iCToC2TK5PyMExD': { tier: 'standard', role: 'rep' },
   'price_1Ti1aAKU7iCToC2TMDDa2FOX': { tier: 'standard', role: 'supplier' },
@@ -43,7 +43,7 @@ exports.handler = async (event) => {
         break
       }
 
-      // Get price details from the session
+      // Get full session with line items
       const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
         expand: ['line_items']
       })
@@ -56,18 +56,22 @@ exports.handler = async (event) => {
       }
 
       // Find user in Supabase by email
-      const { data: users } = await supabase.auth.admin.listUsers()
-      const user = users?.users?.find(u => u.email === customerEmail)
+      const { data: { users } } = await supabase.auth.admin.listUsers()
+      const user = users?.find(u => u.email === customerEmail)
 
       if (!user) {
         console.error('User not found for email:', customerEmail)
+        // Store pending upgrade for when they sign up
         break
       }
 
-      // Update their profile
+      // Update their profile — set BOTH role and tier
       const updateData = {
+        role: tierInfo.role,
         account_tier: tierInfo.tier,
         stripe_customer_id: session.customer,
+        stripe_subscription_id: session.subscription,
+        subscription_status: 'active',
       }
 
       if (tierInfo.tier === 'enterprise') {
@@ -82,40 +86,51 @@ exports.handler = async (event) => {
       if (error) {
         console.error('Failed to update profile:', error)
       } else {
-        console.log(`✓ Updated ${customerEmail} to ${tierInfo.tier} tier`)
+        console.log(`✓ Updated ${customerEmail} → role: ${tierInfo.role}, tier: ${tierInfo.tier}`)
       }
       break
     }
 
     case 'customer.subscription.deleted': {
-      // Subscription cancelled — downgrade to standard
       const subscription = stripeEvent.data.object
       const customerId = subscription.customer
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, email')
+        .select('id')
         .eq('stripe_customer_id', customerId)
         .single()
 
       if (profile) {
         await supabase.from('profiles').update({
-          account_tier: 'standard'
+          account_tier: 'standard',
+          subscription_status: 'cancelled'
         }).eq('id', profile.id)
-        console.log(`✓ Downgraded ${customerId} to standard after cancellation`)
+        console.log(`✓ Downgraded ${customerId} after cancellation`)
       }
       break
     }
 
     case 'invoice.payment_failed': {
-      // Payment failed — notify but don't downgrade yet
       const invoice = stripeEvent.data.object
-      console.log('Payment failed for customer:', invoice.customer)
+      const customerId = invoice.customer
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('stripe_customer_id', customerId)
+        .single()
+
+      if (profile) {
+        await supabase.from('profiles').update({
+          subscription_status: 'past_due'
+        }).eq('id', profile.id)
+        console.log(`Payment failed for customer: ${customerId}`)
+      }
       break
     }
 
     case 'customer.subscription.updated': {
-      // Subscription changed (upgrade/downgrade)
       const subscription = stripeEvent.data.object
       const customerId = subscription.customer
       const priceId = subscription.items?.data?.[0]?.price?.id
@@ -130,10 +145,12 @@ exports.handler = async (event) => {
 
         if (profile) {
           await supabase.from('profiles').update({
+            role: tierInfo.role,
             account_tier: tierInfo.tier,
+            subscription_status: subscription.status,
             ...(tierInfo.tier === 'enterprise' ? { enterprise_since: new Date().toISOString() } : {})
           }).eq('id', profile.id)
-          console.log(`✓ Updated subscription tier to ${tierInfo.tier}`)
+          console.log(`✓ Updated subscription → role: ${tierInfo.role}, tier: ${tierInfo.tier}`)
         }
       }
       break
@@ -143,8 +160,5 @@ exports.handler = async (event) => {
       console.log(`Unhandled event type: ${stripeEvent.type}`)
   }
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ received: true })
-  }
+  return { statusCode: 200, body: JSON.stringify({ received: true }) }
 }

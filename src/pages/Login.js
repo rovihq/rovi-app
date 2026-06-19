@@ -19,6 +19,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const { signIn, signUp, resetPassword } = useAuth()
   const navigate = useNavigate()
+  const subscribed = new URLSearchParams(window.location.search).get('subscribed')
 
   const handleSignIn = async (e) => {
     e.preventDefault()
@@ -106,6 +107,12 @@ export default function Login() {
                   {t === 'signin' ? 'Sign in' : 'Create account'}
                 </button>
               ))}
+            </div>
+          )}
+
+          {subscribed && (
+            <div style={{ background: '#0F2E24', color: '#5DCAA5', padding: '12px 16px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>
+              🎉 Payment successful! Sign in below to access your account.
             </div>
           )}
 

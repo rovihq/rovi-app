@@ -13,7 +13,7 @@ exports.handler = async (event) => {
       mode: 'subscription',
       customer_email: customerEmail,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.URL || 'https://rovi-app.netlify.app'}/?subscribed=true`,
+      success_url: `${process.env.URL || 'https://rovi-app.netlify.app'}/login?subscribed=true`,
       cancel_url: `${process.env.URL || 'https://rovi-app.netlify.app'}/subscribe`,
     })
 
