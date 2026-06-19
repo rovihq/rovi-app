@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import ChatPanel from '../components/ChatPanel'
+import EnterprisePanel from '../components/EnterprisePanel'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -157,6 +158,7 @@ export default function SupplierDashboard() {
     { id: 'catalog', label: 'Catalog', icon: '+' },
     { id: 'reps', label: 'Rep Performance', icon: '📊' },
     { id: 'insights', label: 'Demand Insights', icon: '↗' },
+    ...(profile?.account_tier === 'enterprise' ? [{ id: 'enterprise', label: '⭐ Enterprise', icon: '⭐' }] : []),
     { id: 'admin', label: '⚙ Admin', icon: '⚙' },
   ]
 
@@ -211,6 +213,7 @@ export default function SupplierDashboard() {
               {activeSection === 'catalog' && 'Product Catalog'}
               {activeSection === 'insights' && 'Demand Insights'}
               {activeSection === 'reps' && 'Rep Performance'}
+              {activeSection === 'enterprise' && 'Enterprise Management'}
               {activeSection === 'admin' && 'Admin Panel'}
             </div>
             <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>
@@ -591,6 +594,11 @@ export default function SupplierDashboard() {
               ))}
             </div>
           </>
+        )}
+
+        {/* ENTERPRISE */}
+        {activeSection === 'enterprise' && (
+          <EnterprisePanel profile={profile} />
         )}
 
         {/* ADD PRODUCT MODAL */}
