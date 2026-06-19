@@ -89,7 +89,6 @@ export default function Subscribe() {
 
   const handleSubscribe = async (plan) => {
     if (!plan.priceId) return
-    if (!user) { navigate('/login'); return }
 
     setLoading(plan.id)
     setError('')
@@ -100,7 +99,7 @@ export default function Subscribe() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           priceId: plan.priceId,
-          customerEmail: user.email,
+          customerEmail: user?.email || null,
         })
       })
 
@@ -196,7 +195,7 @@ export default function Subscribe() {
               ) : (
                 <button onClick={() => handleSubscribe(plan)} disabled={isLoading}
                   style={{ width: '100%', padding: '11px', background: plan.id === 'enterprise' ? COLORS.teal : plan.color, color: plan.id === 'enterprise' || plan.id === 'rep' ? COLORS.dark : 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', marginBottom: '24px', opacity: isLoading ? 0.7 : 1 }}>
-                  {isLoading ? 'Redirecting to Stripe...' : plan.id === 'enterprise' ? 'Contact us' : `Subscribe — $${plan.price}/mo`}
+                  {isLoading ? 'Redirecting to Stripe...' : plan.id === 'enterprise' ? 'Contact us' : `Get started — $${plan.price}/mo`}
                 </button>
               )}
 
@@ -211,6 +210,19 @@ export default function Subscribe() {
             </div>
           )
         })}
+      </div>
+
+      {/* HOW IT WORKS NOTE */}
+      <div style={{ maxWidth: '600px', margin: '0 auto', padding: '0 40px 40px', textAlign: 'center' }}>
+        <div style={{ background: '#1A1A18', border: `0.5px solid #2C2C2A`, borderRadius: '10px', padding: '20px 24px' }}>
+          <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.teal, marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>How it works</div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {['Choose your plan', '→', 'Enter payment details', '→', 'Account created instantly', '→', 'Set your password', '→', 'Log in'].map((step, i) => (
+              <span key={i} style={{ fontSize: '12px', color: step === '→' ? '#3D3D3A' : '#888780', fontWeight: step === '→' ? '300' : '400' }}>{step}</span>
+            ))}
+          </div>
+          <div style={{ fontSize: '11px', color: '#3D3D3A', marginTop: '10px' }}>Your account is created after payment. You'll receive an email to set your password.</div>
+        </div>
       </div>
 
       {error && (

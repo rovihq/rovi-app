@@ -110,12 +110,6 @@ export default function Login() {
             </div>
           )}
 
-          {subscribed && (
-            <div style={{ background: '#0F2E24', color: '#5DCAA5', padding: '12px 16px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>
-              🎉 Payment successful! Sign in below to access your account.
-            </div>
-          )}
-
           {/* Error / message */}
           {error && <div style={{ background: '#3D1A1A', color: '#F87171', padding: '10px 12px', borderRadius: '7px', fontSize: '13px', marginBottom: '12px' }}>{error}</div>}
           {message && <div style={{ background: '#0F2E24', color: '#5DCAA5', padding: '10px 12px', borderRadius: '7px', fontSize: '13px', marginBottom: '12px' }}>{message}</div>}
@@ -123,6 +117,11 @@ export default function Login() {
           {/* SIGN IN */}
           {tab === 'signin' && !showReset && (
             <form onSubmit={handleSignIn}>
+              {subscribed && (
+                <div style={{ background: '#0F2E24', border: '0.5px solid #1D9E75', color: '#5DCAA5', padding: '12px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', lineHeight: '1.5' }}>
+                  🎉 Payment successful! Check your email to set your password, then sign in below.
+                </div>
+              )}
               <input style={inputStyle} type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
               <input style={inputStyle} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
               <button type="submit" style={btnStyle} disabled={loading}>{loading ? 'Signing in...' : 'Sign in'}</button>
