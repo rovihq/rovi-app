@@ -256,6 +256,21 @@ export default function SupplierDashboard() {
         {/* OVERVIEW */}
         {activeSection === 'overview' && (
           <>
+            {profile?.account_tier !== 'enterprise' && (
+              <div style={{ background: 'linear-gradient(135deg, #1C1C1A, #2C2C2A)', border: `0.5px solid ${COLORS.teal}`, borderRadius: '10px', padding: '16px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 0 24px rgba(93,202,165,0.06)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ background: COLORS.teal, color: COLORS.dark, fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px' }}>⭐ Enterprise</span>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6' }}>Unlock rep management, payroll automation and direct deposit</div>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#5F5E5A' }}>$999/mo · Unlimited reps · Commission payroll · CSV/PDF exports · 1099s · Dedicated account manager</div>
+                </div>
+                <a href="https://rovi-app.netlify.app/subscribe" target="_blank" rel="noreferrer"
+                  style={{ padding: '9px 18px', background: COLORS.teal, color: COLORS.dark, border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: '20px' }}>
+                  Upgrade → $999/mo
+                </a>
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
               {[
                 { label: 'Orders this month', value: mtdOrders.length, delta: 'This month' },
