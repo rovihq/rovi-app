@@ -18,6 +18,7 @@ export default function Login() {
   const subscribed = new URLSearchParams(window.location.search).get('subscribed')
   const doctorSignup = new URLSearchParams(window.location.search).get('doctor')
 
+  // Doctor free signup state
   const [showDoctorForm, setShowDoctorForm] = useState(doctorSignup === 'true')
   const [doctorForm, setDoctorForm] = useState({ firstName: '', lastName: '', email: '', phone: '', company: '', password: '', confirm: '' })
   const [doctorLoading, setDoctorLoading] = useState(false)
@@ -92,8 +93,10 @@ export default function Login() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <Logo variant="dark" height={44} />
-          <div style={{ fontSize: '13px', color: '#5F5E5A', marginTop: '6px' }}>The platform compounding runs on</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+            <Logo variant="dark" height={56} />
+          </div>
+          <div style={{ fontSize: '13px', color: '#5F5E5A', marginTop: '4px' }}>The platform compounding runs on</div>
         </div>
 
         <div style={{ background: '#1A1A18', border: '0.5px solid #2C2C2A', borderRadius: '16px', padding: '32px' }}>
@@ -162,12 +165,14 @@ export default function Login() {
                 Forgot password?
               </button>
 
+              {/* Divider */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
                 <div style={{ flex: 1, height: '0.5px', background: '#2C2C2A' }} />
                 <span style={{ fontSize: '12px', color: '#3D3D3A' }}>New to Rovi?</span>
                 <div style={{ flex: 1, height: '0.5px', background: '#2C2C2A' }} />
               </div>
 
+              {/* Get started options */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <button onClick={() => navigate('/subscribe')}
                   style={{ width: '100%', padding: '11px', background: 'transparent', border: '0.5px solid #5DCAA5', borderRadius: '8px', color: '#5DCAA5', fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
