@@ -23,6 +23,40 @@ const DoctorStatus = ({ lastOrderDate }) => {
   return <Badge label="Overdue" color="#791F1F" bg="#FCEBEB" />
 }
 
+function CommissionStatus({ repId }) {
+  const [approvals, setApprovals] = useState([])
+  useEffect(() => {
+    if (!repId) return
+    supabase.from('commission_approvals')
+      .select('*, supplier:profiles!commission_approvals_supplier_id_fkey(company_name)')
+      .eq('rep_id', repId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setApprovals(data || []))
+  }, [repId])
+  if (approvals.length === 0) return <div style={{ color: '#A8A8A2', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No commission records yet</div>
+  return approvals.map(a => {
+    const statusMap = {
+      pending: { bg: '#FAEEDA', color: '#633806', label: '⏳ Pending approval' },
+      approved: { bg: '#EEEDFE', color: '#3C3489', label: '✓ Approved — payment coming' },
+      paid: { bg: '#E8F7F1', color: '#085041', label: `✓ Paid via ${a.payment_method || 'bank'}` }
+    }
+    const s = statusMap[a.status] || statusMap.pending
+    return (
+      <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: '0.5px solid #E2E0D8' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A' }}>{a.supplier?.company_name}</div>
+          <div style={{ fontSize: '11px', color: '#A8A8A2' }}>{a.period_start} → {a.period_end} · {a.total_orders} orders</div>
+        </div>
+        <div style={{ textAlign: 'right', marginRight: '10px' }}>
+          <div style={{ fontSize: '15px', fontWeight: '600', color: '#EF9F27' }}>${Number(a.commission_amount).toFixed(2)}</div>
+          <div style={{ fontSize: '10px', color: '#A8A8A2' }}>{a.commission_rate}% rate</div>
+        </div>
+        <span style={{ background: s.bg, color: s.color, fontSize: '10px', fontWeight: '600', padding: '3px 9px', borderRadius: '20px', whiteSpace: 'nowrap' }}>{s.label}</span>
+      </div>
+    )
+  })
+}
+
 export default function RepDashboard() {
   const { profile, signOut } = useAuth()
   const [activeSection, setActiveSection] = useState('dashboard')
@@ -577,6 +611,12 @@ export default function RepDashboard() {
                   <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.green }}>${(Number(o.total_price) * 0.08).toFixed(2)}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Commission approval status */}
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px', marginTop: '12px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>Payment status from supplier</div>
+              <CommissionStatus repId={profile?.id} />
             </div>
           </>
         )}

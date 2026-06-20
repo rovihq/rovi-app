@@ -18,6 +18,10 @@ export default function EnterprisePanel({ profile }) {
   const [showAddRep, setShowAddRep] = useState(false)
   const [showCreateRep, setShowCreateRep] = useState(false)
   const [newRep, setNewRep] = useState({ full_name: '', email: '', company_name: '', territory: '', commission_rate: 8 })
+  const [showPayModal, setShowPayModal] = useState(null)
+  const [payMethod, setPayMethod] = useState('ach')
+  const [payReference, setPayReference] = useState('')
+  const [payNotes, setPayNotes] = useState('')
   const [creating, setCreating] = useState(false)
   const [createMsg, setCreateMsg] = useState('')
   const [generatingApprovals, setGeneratingApprovals] = useState(false)
@@ -194,11 +198,23 @@ export default function EnterprisePanel({ profile }) {
     fetchAll()
   }
 
-  const markPaid = async (approvalId) => {
+  const markPaid = (approvalId) => {
+    setShowPayModal(approvalId)
+  }
+
+  const confirmPayment = async () => {
+    if (!showPayModal) return
     await supabase.from('commission_approvals').update({
       status: 'paid',
-      paid_at: new Date().toISOString()
-    }).eq('id', approvalId)
+      paid_at: new Date().toISOString(),
+      payment_method: payMethod,
+      payment_reference: payReference,
+      payment_notes: payNotes
+    }).eq('id', showPayModal)
+    setShowPayModal(null)
+    setPayMethod('ach')
+    setPayReference('')
+    setPayNotes('')
     fetchAll()
   }
 
@@ -290,7 +306,7 @@ export default function EnterprisePanel({ profile }) {
             </button>
           </div>
 
-          {showAddRep && (
+          {showAddRep && allRepsPool.length > 0 && (
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
               <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '12px' }}>Available reps on Rovi</div>
               {allRepsPool.map(r => (
@@ -509,6 +525,37 @@ export default function EnterprisePanel({ profile }) {
               <button onClick={createNewRep} disabled={creating || !newRep.email || !newRep.full_name}
                 style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
                 {creating ? 'Creating...' : 'Create rep'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PAY MODAL */}
+      {showPayModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 700 }}>
+          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
+            <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>Record payment</div>
+            <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>How was this commission paid?</div>
+
+            <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '5px' }}>Payment method</label>
+            <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ ...inputStyle, marginBottom: '12px' }}>
+              <option value="ach">ACH / Bank transfer</option>
+              <option value="check">Check</option>
+              <option value="wire">Wire transfer</option>
+              <option value="other">Other</option>
+            </select>
+
+            <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '5px' }}>Reference number (optional)</label>
+            <input style={inputStyle} placeholder="e.g. check #1234 or transaction ID" value={payReference} onChange={e => setPayReference(e.target.value)} />
+
+            <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '5px' }}>Notes (optional)</label>
+            <input style={inputStyle} placeholder="Any additional payment notes" value={payNotes} onChange={e => setPayNotes(e.target.value)} />
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button onClick={() => setShowPayModal(null)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+              <button onClick={confirmPayment} style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+                ✓ Confirm payment
               </button>
             </div>
           </div>
