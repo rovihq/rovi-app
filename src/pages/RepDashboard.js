@@ -32,8 +32,9 @@ function CommissionStatus({ repId }) {
       .eq('rep_id', repId)
       .order('created_at', { ascending: false })
       .then(({ data }) => setApprovals(data || []))
+      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repId])
-  if (approvals.length === 0) return <div style={{ color: '#A8A8A2', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No commission records yet</div>
+  if (approvals.length === 0) return <div style={{ color: '#A8A8A2', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No commission payment records yet — your supplier will generate these monthly.</div>
   return approvals.map(a => {
     const statusMap = {
       pending: { bg: '#FAEEDA', color: '#633806', label: '⏳ Pending approval' },
@@ -46,6 +47,7 @@ function CommissionStatus({ repId }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A' }}>{a.supplier?.company_name}</div>
           <div style={{ fontSize: '11px', color: '#A8A8A2' }}>{a.period_start} → {a.period_end} · {a.total_orders} orders</div>
+          {a.payment_reference && <div style={{ fontSize: '11px', color: '#A8A8A2' }}>Ref: {a.payment_reference}</div>}
         </div>
         <div style={{ textAlign: 'right', marginRight: '10px' }}>
           <div style={{ fontSize: '15px', fontWeight: '600', color: '#EF9F27' }}>${Number(a.commission_amount).toFixed(2)}</div>
@@ -158,25 +160,11 @@ export default function RepDashboard() {
       options: { data: { full_name: newDoctor.full_name, company_name: newDoctor.company_name, phone: newDoctor.phone, role: 'doctor' } }
     })
     if (error) { setInviteMsg('Error: ' + error.message); return }
-    // Wait for profile to be created then link
-    setTimeout(async () => {
-      const { data: newUser } = await supabase.from('profiles')
-        .select('id').eq('full_name', newDoctor.full_name).eq('role', 'doctor').single()
-      if (newUser) {
-        // Update assigned_rep_id for backwards compatibility
-        await supabase.from('profiles').update({ assigned_rep_id: profile.id }).eq('id', newUser.id)
-        // Create connection record
-        await supabase.from('doctor_rep_connections').upsert({
-          doctor_id: newUser.id,
-          rep_id: profile.id,
-          status: 'active',
-          connected_at: new Date().toISOString()
-        }, { onConflict: 'doctor_id,rep_id' })
-      }
-      setInviteMsg('Doctor invited successfully!')
-      fetchAll()
-      setTimeout(() => { setShowAddDoctor(false); setInviteMsg(''); setNewDoctor({ full_name: '', company_name: '', email: '', phone: '', specialty: 'Hormone / GLP-1' }) }, 2000)
-    }, 1500)
+    const { data: newUser } = await supabase.from('profiles').select('id').eq('full_name', newDoctor.full_name).single()
+    if (newUser) await supabase.from('profiles').update({ assigned_rep_id: profile.id }).eq('id', newUser.id)
+    setInviteMsg('Doctor invited successfully!')
+    fetchAll()
+    setTimeout(() => { setShowAddDoctor(false); setInviteMsg(''); setNewDoctor({ full_name: '', company_name: '', email: '', phone: '', specialty: 'Hormone / GLP-1' }) }, 2000)
   }
 
   const placeOrderForDoctor = async () => {
