@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import Logo from '../components/Logo'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -227,7 +228,7 @@ export default function AdminDashboard() {
       {/* SIDEBAR */}
       <div style={{ width: '220px', background: COLORS.dark, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
         <div style={{ padding: '20px 18px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
-          <div style={{ fontSize: '18px', fontWeight: '700', color: '#F0EDE6' }}>Rovi<span style={{ color: COLORS.teal }}>.</span></div>
+          <Logo variant="dark" height={26} />
           <div style={{ fontSize: '11px', color: '#5F5E5A', marginTop: '2px' }}>Admin Panel</div>
         </div>
         <div style={{ padding: '8px 10px', flex: 1 }}>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Logo from '../components/Logo'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -100,9 +101,7 @@ export default function Subscribe() {
 
       {/* HEADER */}
       <div style={{ padding: '20px 40px', borderBottom: `0.5px solid #E2E0D8`, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: '22px', fontWeight: '700', color: '#1C1C1A' }}>
-          Rovi<span style={{ color: COLORS.teal }}>.</span>
-        </div>
+        <Logo variant="light" height={36} />
         <button onClick={() => navigate('/login')}
           style={{ padding: '8px 16px', background: 'transparent', border: `0.5px solid #C8C6BE`, borderRadius: '7px', color: '#5F5E5A', fontSize: '13px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
           Already have an account? Sign in

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import Logo from '../components/Logo'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -77,9 +78,7 @@ export default function ResetPassword() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ fontSize: '28px', fontWeight: '700', color: COLORS.dark }}>
-            Rovi<span style={{ color: COLORS.teal }}>.</span>
-          </div>
+          <Logo variant="light" height={36} />
         </div>
 
         <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '16px', padding: '36px', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>

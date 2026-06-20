@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import Logo from '../components/Logo'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -91,9 +92,7 @@ export default function Login() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <div style={{ fontSize: '32px', fontWeight: '700', color: '#F0EDE6', letterSpacing: '-1px' }}>
-            Rovi<span style={{ color: '#5DCAA5' }}>.</span>
-          </div>
+          <Logo variant="dark" height={44} />
           <div style={{ fontSize: '13px', color: '#5F5E5A', marginTop: '6px' }}>The platform compounding runs on</div>
         </div>
 

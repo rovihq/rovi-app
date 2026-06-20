@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import ChatPanel from '../components/ChatPanel'
 import EnterprisePanel from '../components/EnterprisePanel'
+import Logo from '../components/Logo'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -171,8 +172,8 @@ export default function SupplierDashboard() {
 
       {/* SIDEBAR */}
       <div style={{ width: '220px', background: COLORS.dark, borderRight: `0.5px solid ${COLORS.dark2}`, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
-        <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.dark2}`, fontSize: '20px', fontWeight: '700', color: '#F0EDE6' }}>
-          Rovi<span style={{ color: COLORS.teal }}>.</span>
+        <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
+          <Logo variant="dark" height={28} />
         </div>
         <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: COLORS.green3, color: COLORS.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', marginBottom: '6px' }}>
