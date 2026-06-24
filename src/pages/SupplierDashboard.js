@@ -258,9 +258,8 @@ export default function SupplierDashboard() {
         {activeSection === 'overview' && (
           <>
             {/* SEAT COUNTER + UPGRADE BANNER */}
-            {profile?.account_tier !== 'enterprise' && (
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '14px 18px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '14px 18px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.dark, marginBottom: '2px' }}>Rep seats</div>
                     <div style={{ fontSize: '11px', color: COLORS.text3 }}>
@@ -296,7 +295,6 @@ export default function SupplierDashboard() {
                   </a>
                 </div>
               </div>
-            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
               {[
