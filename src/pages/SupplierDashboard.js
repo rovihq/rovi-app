@@ -10,7 +10,8 @@ const COLORS = {
   dark2: '#2C2C2A', bg: '#F7F5F0', bg2: '#F0EDE6',
   border: '#E2E0D8', text2: '#5F5E5A', text3: '#A8A8A2',
   amber: '#EF9F27', amber2: '#FAEEDA', red: '#E24B4A',
-  green3: '#E8F7F1', blue2: '#E6F1FB'
+  green3: '#E8F7F1', blue2: '#E6F1FB',
+  purple2: '#EEEDFE', purple3: '#3C3489'
 }
 
 const Badge = ({ status }) => {
@@ -44,7 +45,7 @@ function ConnectedReps({ supplierId, onMessage }) {
   if (reps.length === 0) return <div style={{ color: '#A8A8A2', fontSize: '13px', padding: '20px', textAlign: 'center' }}>No reps connected yet</div>
   return reps.map(r => (
     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '0.5px solid #E2E0D8' }}>
-      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600' }}>{r.full_name?.charAt(0)}</div>
+      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600' }}>{r.full_name?.charAt(0)}</div>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A' }}>{r.full_name}</div>
         <div style={{ fontSize: '11px', color: '#A8A8A2' }}>{r.company_name} · {r.territory}</div>
@@ -534,7 +535,7 @@ export default function SupplierDashboard() {
             ) : repPerformance.map((rep, idx) => (
               <div key={rep.id} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600', flexShrink: 0 }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600', flexShrink: 0 }}>
                     {rep.full_name?.charAt(0)}
                   </div>
                   <div style={{ flex: 1 }}>
@@ -800,7 +801,7 @@ export default function SupplierDashboard() {
                 <div style={{ textAlign: 'center', padding: '40px', color: COLORS.text3, fontSize: '13px' }}>No unconnected reps found in the network.</div>
               ) : allRepsPool.map(r => (
                 <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
-                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', flexShrink: 0 }}>
+                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', flexShrink: 0 }}>
                     {r.full_name?.charAt(0)}
                   </div>
                   <div style={{ flex: 1 }}>
