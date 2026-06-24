@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import ChatPanel from '../components/ChatPanel'
 import Logo from '../components/Logo'
+import EnterprisePanel from '../components/EnterprisePanel'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -69,6 +70,12 @@ export default function SupplierDashboard() {
   const [repPerformance, setRepPerformance] = useState([])
   const [commissionRate, setCommissionRate] = useState(8)
   const [editingRate, setEditingRate] = useState(false)
+  const [showAddRep, setShowAddRep] = useState(false)
+  const [allRepsPool, setAllRepsPool] = useState([])
+  const [showCreateRep, setShowCreateRep] = useState(false)
+  const [newRep, setNewRep] = useState({ full_name: '', email: '', company_name: '', territory: '', commission_rate: 8 })
+  const [creatingRep, setCreatingRep] = useState(false)
+  const [repMsg, setRepMsg] = useState('')
 
   useEffect(() => {
     if (profile?.id) { fetchAll(); fetchChatContacts(); fetchRepPerformance() }
@@ -129,6 +136,41 @@ export default function SupplierDashboard() {
     setRepPerformance(repData.sort((a, b) => b.totalRevenue - a.totalRevenue))
   }
 
+  const fetchAllReps = async () => {
+    const connectedIds = repPerformance.map(r => r.id)
+    const { data } = await supabase.from('profiles').select('id, full_name, company_name, territory').eq('role', 'rep')
+    setAllRepsPool((data || []).filter(r => !connectedIds.includes(r.id)))
+  }
+
+  const connectRep = async (repId) => {
+    await supabase.from('rep_supplier_connections').upsert({
+      rep_id: repId, supplier_id: profile.id, status: 'active', connected_at: new Date().toISOString()
+    }, { onConflict: 'rep_id,supplier_id' })
+    fetchRepPerformance()
+    setShowAddRep(false)
+  }
+
+  const createAndConnectRep = async () => {
+    if (!newRep.email || !newRep.full_name) return
+    setCreatingRep(true)
+    setRepMsg('')
+    const { error } = await supabase.auth.signUp({
+      email: newRep.email, password: 'TempPass123!',
+      options: { data: { full_name: newRep.full_name, company_name: newRep.company_name, role: 'rep' } }
+    })
+    if (error) { setRepMsg('Error: ' + error.message); setCreatingRep(false); return }
+    setTimeout(async () => {
+      const { data: repProfile } = await supabase.from('profiles').select('id').eq('full_name', newRep.full_name).eq('role', 'rep').single()
+      if (repProfile) {
+        await supabase.from('profiles').update({ territory: newRep.territory, commission_rate: parseFloat(newRep.commission_rate), assigned_supplier_id: profile.id }).eq('id', repProfile.id)
+        await supabase.from('rep_supplier_connections').upsert({ rep_id: repProfile.id, supplier_id: profile.id, status: 'active', connected_at: new Date().toISOString() }, { onConflict: 'rep_id,supplier_id' })
+      }
+      setRepMsg('Rep created!')
+      fetchRepPerformance()
+      setTimeout(() => { setShowCreateRep(false); setRepMsg(''); setNewRep({ full_name: '', email: '', company_name: '', territory: '', commission_rate: 8 }); setCreatingRep(false) }, 1500)
+    }, 1500)
+  }
+
   const addProduct = async () => {
     if (!newProduct.name || !newProduct.price_per_unit) return
     await supabase.from('products').insert({ ...newProduct, supplier_id: profile.id, price_per_unit: parseFloat(newProduct.price_per_unit), stock_quantity: parseInt(newProduct.stock_quantity) || 0 })
@@ -158,7 +200,9 @@ export default function SupplierDashboard() {
     { id: 'catalog', label: 'Catalog', icon: '+' },
     { id: 'reps', label: 'Rep Performance', icon: '📊' },
     { id: 'insights', label: 'Demand Insights', icon: '↗' },
-    { id: 'admin', label: '⚙ Admin', icon: '⚙' },
+    ...(profile?.account_tier === 'enterprise' ? [{ id: 'enterprise', label: 'Enterprise', icon: '⭐' }] : []),
+    { id: 'addons', label: 'Add-ons', icon: '＋' },
+    { id: 'admin', label: 'Admin', icon: '⚙' },
   ]
 
   const inputStyle = { width: '100%', padding: '10px 12px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', marginBottom: '10px', outline: 'none', background: 'white' }
@@ -179,6 +223,9 @@ export default function SupplierDashboard() {
           </div>
           <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6' }}>{profile?.company_name}</div>
           <div style={{ fontSize: '11px', color: '#5F5E5A' }}>Supplier account</div>
+          {profile?.account_tier === 'enterprise' && (
+            <div style={{ marginTop: '4px', fontSize: '10px', color: COLORS.teal, fontWeight: '500' }}>⭐ Enterprise · Unlimited seats</div>
+          )}
         </div>
         <div style={{ padding: '12px 10px', flex: 1, overflowY: 'auto' }}>
           <div style={{ fontSize: '10px', fontWeight: '500', color: '#5F5E5A', letterSpacing: '1px', textTransform: 'uppercase', padding: '8px 8px 4px' }}>Main</div>
@@ -212,6 +259,8 @@ export default function SupplierDashboard() {
               {activeSection === 'catalog' && 'Product Catalog'}
               {activeSection === 'insights' && 'Demand Insights'}
               {activeSection === 'reps' && 'Rep Performance'}
+              {activeSection === 'enterprise' && 'Enterprise Management'}
+              {activeSection === 'addons' && 'Add-ons'}
               {activeSection === 'admin' && 'Admin Panel'}
             </div>
             <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>
@@ -257,9 +306,9 @@ export default function SupplierDashboard() {
         {/* OVERVIEW */}
         {activeSection === 'overview' && (
           <>
-            {/* SEAT COUNTER + UPGRADE BANNER */}
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '14px 18px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {profile?.account_tier !== 'enterprise' && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '14px 18px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.dark, marginBottom: '2px' }}>Rep seats</div>
                     <div style={{ fontSize: '11px', color: COLORS.text3 }}>
@@ -287,7 +336,7 @@ export default function SupplierDashboard() {
                       <div style={{ fontSize: '12px', fontWeight: '500', color: '#F0EDE6' }}>Unlimited reps + commission payroll + exports</div>
                     </div>
                     <div style={{ fontSize: '11px', color: '#5F5E5A' }}>
-                      {repPerformance.length >= (profile?.included_rep_seats || 3) ? "You're at your seat limit — upgrade for unlimited reps" : '$999/mo · Best value at 25+ reps · Dedicated account manager'}
+                      {repPerformance.length >= (profile?.included_rep_seats || 3) ? `You're at your seat limit — upgrade for unlimited reps` : `$999/mo · Best value at 25+ reps · Dedicated account manager`}
                     </div>
                   </div>
                   <a href="/subscribe" style={{ padding: '8px 16px', background: COLORS.teal, color: COLORS.dark, border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: '16px' }}>
@@ -295,6 +344,7 @@ export default function SupplierDashboard() {
                   </a>
                 </div>
               </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
               {[
@@ -413,9 +463,30 @@ export default function SupplierDashboard() {
         {/* REP PERFORMANCE */}
         {activeSection === 'reps' && (
           <>
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>Rep Performance</div>
-              <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>Revenue, commissions, and order activity across your rep network</div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div>
+                <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>Rep Performance</div>
+                <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>Revenue, commissions, and order activity across your rep network</div>
+                {profile?.account_tier !== 'enterprise' && (
+                  <div style={{ marginTop: '6px', fontSize: '12px', color: repPerformance.length >= (profile?.included_rep_seats || 3) ? COLORS.amber : COLORS.text3, fontWeight: repPerformance.length >= (profile?.included_rep_seats || 3) ? '500' : '400' }}>
+                    {repPerformance.length} of {profile?.included_rep_seats || 3} rep seats used
+                    {repPerformance.length >= (profile?.included_rep_seats || 3) && ' · At seat limit'}
+                  </div>
+                )}
+                {profile?.account_tier === 'enterprise' && (
+                  <div style={{ marginTop: '6px', fontSize: '12px', color: COLORS.teal }}>⭐ Enterprise · {repPerformance.length} reps · Unlimited seats</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => { fetchAllReps(); setShowAddRep(true) }}
+                  style={{ padding: '8px 16px', background: COLORS.bg2, color: COLORS.text2, border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  + Connect existing rep
+                </button>
+                <button onClick={() => setShowCreateRep(true)}
+                  style={{ padding: '8px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  + Create new rep
+                </button>
+              </div>
             </div>
 
             <div style={{ background: '#FFF9F0', border: `0.5px solid #FAC775`, borderRadius: '10px', padding: '16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -581,6 +652,77 @@ export default function SupplierDashboard() {
           </>
         )}
 
+        {/* ENTERPRISE */}
+        {activeSection === 'enterprise' && profile?.account_tier === 'enterprise' && (
+          <EnterprisePanel profile={profile} />
+        )}
+
+        {/* ADD-ONS */}
+        {activeSection === 'addons' && (
+          <>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', color: COLORS.text3 }}>Enhance your Rovi plan with additional features and seats</div>
+            </div>
+
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>Current plan</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '600', color: COLORS.dark }}>
+                    {profile?.account_tier === 'enterprise' ? '⭐ Enterprise' : 'Supplier'} — ${profile?.account_tier === 'enterprise' ? '999' : '299'}/mo
+                  </div>
+                  <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '4px' }}>
+                    {profile?.account_tier === 'enterprise'
+                      ? 'Unlimited rep seats · Commission payroll · Priority support'
+                      : `${profile?.included_rep_seats || 3} rep seats included · $${profile?.per_seat_price || 25}/mo per additional seat`}
+                  </div>
+                </div>
+                {profile?.account_tier !== 'enterprise' && (
+                  <a href="/subscribe" style={{ padding: '9px 18px', background: COLORS.green, color: 'white', borderRadius: '7px', fontSize: '13px', fontWeight: '500', textDecoration: 'none' }}>
+                    Upgrade to Enterprise
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {profile?.account_tier !== 'enterprise' && (
+              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '4px' }}>Additional rep seats</div>
+                <div style={{ fontSize: '12px', color: COLORS.text3, marginBottom: '16px' }}>
+                  You're using {repPerformance.length} of {profile?.included_rep_seats || 3} included seats.
+                  Additional seats are billed at ${profile?.per_seat_price || 25}/mo each.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
+                  {[1, 3, 5].map(n => (
+                    <div key={n} style={{ border: `0.5px solid ${COLORS.border}`, borderRadius: '9px', padding: '16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '22px', fontWeight: '600', color: COLORS.dark, marginBottom: '2px' }}>+{n} seat{n > 1 ? 's' : ''}</div>
+                      <div style={{ fontSize: '13px', color: COLORS.text3, marginBottom: '12px' }}>+${n * (profile?.per_seat_price || 25)}/mo</div>
+                      <a href="/subscribe" style={{ display: 'block', padding: '8px', background: COLORS.bg2, color: COLORS.green, border: `0.5px solid ${COLORS.border}`, borderRadius: '6px', fontSize: '12px', fontWeight: '500', textDecoration: 'none' }}>
+                        Add seats →
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ background: 'linear-gradient(135deg, #1C1C1A, #2C2C2A)', border: `0.5px solid ${COLORS.teal}`, borderRadius: '10px', padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                <span style={{ background: COLORS.teal, color: COLORS.dark, fontSize: '10px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px' }}>⭐ Enterprise — $999/mo</span>
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: '500', color: '#F0EDE6', marginBottom: '6px' }}>Everything in Supplier, plus:</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '18px' }}>
+                {['Unlimited rep seats', 'Commission payroll exports', 'Dedicated account manager', 'Priority support', 'Custom onboarding', 'Advanced analytics'].map(f => (
+                  <div key={f} style={{ fontSize: '12px', color: '#A8A8A2' }}>✓ {f}</div>
+                ))}
+              </div>
+              <a href="/subscribe" style={{ display: 'inline-block', padding: '10px 24px', background: COLORS.teal, color: COLORS.dark, borderRadius: '7px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+                Upgrade to Enterprise →
+              </a>
+            </div>
+          </>
+        )}
+
         {/* ADMIN */}
         {activeSection === 'admin' && (
           <>
@@ -640,6 +782,70 @@ export default function SupplierDashboard() {
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
                 <button onClick={() => setShowAddProduct(false)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
                 <button onClick={addProduct} style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>Add product</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CONNECT EXISTING REP MODAL */}
+        {showAddRep && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '460px', maxWidth: '90vw', maxHeight: '80vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ fontSize: '16px', fontWeight: '500' }}>Connect existing rep</div>
+                <button onClick={() => setShowAddRep(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: COLORS.text3 }}>×</button>
+              </div>
+              <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '16px' }}>Select a rep from the Rovi network to connect to your account.</div>
+              {allRepsPool.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: COLORS.text3, fontSize: '13px' }}>No unconnected reps found in the network.</div>
+              ) : allRepsPool.map(r => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', flexShrink: 0 }}>
+                    {r.full_name?.charAt(0)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{r.full_name}</div>
+                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>{r.company_name} · {r.territory}</div>
+                  </div>
+                  <button onClick={() => connectRep(r.id)}
+                    style={{ padding: '6px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                    Connect
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* CREATE NEW REP MODAL */}
+        {showCreateRep && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ fontSize: '16px', fontWeight: '500' }}>Create new rep</div>
+                <button onClick={() => { setShowCreateRep(false); setRepMsg('') }} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: COLORS.text3 }}>×</button>
+              </div>
+              <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>We'll create their account and connect them to you automatically.</div>
+              {repMsg && (
+                <div style={{ padding: '10px 12px', borderRadius: '7px', fontSize: '13px', marginBottom: '12px', background: repMsg.startsWith('Error') ? '#FCEBEB' : COLORS.green3, color: repMsg.startsWith('Error') ? '#791F1F' : '#085041' }}>
+                  {repMsg}
+                </div>
+              )}
+              <input style={inputStyle} placeholder="Full name" value={newRep.full_name} onChange={e => setNewRep({...newRep, full_name: e.target.value})} />
+              <input style={inputStyle} type="email" placeholder="Email address" value={newRep.email} onChange={e => setNewRep({...newRep, email: e.target.value})} />
+              <input style={inputStyle} placeholder="Company name" value={newRep.company_name} onChange={e => setNewRep({...newRep, company_name: e.target.value})} />
+              <input style={inputStyle} placeholder="Territory (e.g. Texas)" value={newRep.territory} onChange={e => setNewRep({...newRep, territory: e.target.value})} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <input style={{ ...inputStyle, marginBottom: 0, flex: 1 }} type="number" placeholder="Commission %" value={newRep.commission_rate} onChange={e => setNewRep({...newRep, commission_rate: e.target.value})} />
+                <span style={{ fontSize: '13px', color: COLORS.text2, whiteSpace: 'nowrap' }}>% commission</span>
+              </div>
+              <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '16px' }}>They'll receive an email to set their password. Default temp password: TempPass123!</div>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button onClick={() => { setShowCreateRep(false); setRepMsg('') }} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                <button onClick={createAndConnectRep} disabled={creatingRep}
+                  style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500', opacity: creatingRep ? 0.6 : 1 }}>
+                  {creatingRep ? 'Creating...' : 'Create rep'}
+                </button>
               </div>
             </div>
           </div>
