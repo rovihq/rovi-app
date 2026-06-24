@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import ChatPanel from '../components/ChatPanel'
-import EnterprisePanel from '../components/EnterprisePanel'
 import Logo from '../components/Logo'
 
 const COLORS = {
@@ -159,7 +158,6 @@ export default function SupplierDashboard() {
     { id: 'catalog', label: 'Catalog', icon: '+' },
     { id: 'reps', label: 'Rep Performance', icon: '📊' },
     { id: 'insights', label: 'Demand Insights', icon: '↗' },
-    ...(profile?.account_tier === 'enterprise' ? [{ id: 'enterprise', label: '⭐ Enterprise', icon: '⭐' }] : []),
     { id: 'admin', label: '⚙ Admin', icon: '⚙' },
   ]
 
@@ -172,7 +170,7 @@ export default function SupplierDashboard() {
 
       {/* SIDEBAR */}
       <div style={{ width: '220px', background: COLORS.dark, borderRight: `0.5px solid ${COLORS.dark2}`, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh' }}>
-        <div style={{ padding: '20px 18px 16px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
+        <div style={{ padding: '16px 18px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
           <Logo variant="dark" height={28} />
         </div>
         <div style={{ padding: '14px 18px', borderBottom: `0.5px solid ${COLORS.dark2}` }}>
@@ -214,7 +212,6 @@ export default function SupplierDashboard() {
               {activeSection === 'catalog' && 'Product Catalog'}
               {activeSection === 'insights' && 'Demand Insights'}
               {activeSection === 'reps' && 'Rep Performance'}
-              {activeSection === 'enterprise' && 'Enterprise Management'}
               {activeSection === 'admin' && 'Admin Panel'}
             </div>
             <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '2px' }}>
@@ -260,21 +257,47 @@ export default function SupplierDashboard() {
         {/* OVERVIEW */}
         {activeSection === 'overview' && (
           <>
+            {/* SEAT COUNTER + UPGRADE BANNER */}
             {profile?.account_tier !== 'enterprise' && (
-              <div style={{ background: 'linear-gradient(135deg, #1C1C1A, #2C2C2A)', border: `0.5px solid ${COLORS.teal}`, borderRadius: '10px', padding: '16px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 0 24px rgba(93,202,165,0.06)' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{ background: COLORS.teal, color: COLORS.dark, fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px' }}>⭐ Enterprise</span>
-                    <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6' }}>Unlock rep management, payroll automation and direct deposit</div>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '14px 18px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.dark, marginBottom: '2px' }}>Rep seats</div>
+                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>
+                      {repPerformance.length} of {profile?.included_rep_seats || 3} included seats used
+                      {repPerformance.length > (profile?.included_rep_seats || 3) && (
+                        <span style={{ color: COLORS.amber, fontWeight: '500' }}> · {repPerformance.length - (profile?.included_rep_seats || 3)} additional @ $25/mo each</span>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '12px', color: '#5F5E5A' }}>$999/mo · Unlimited reps · Commission payroll · CSV/PDF exports · 1099s · Dedicated account manager</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {Array.from({ length: Math.max(profile?.included_rep_seats || 3, repPerformance.length) }).map((_, i) => (
+                        <div key={i} style={{ width: '20px', height: '6px', borderRadius: '3px', background: i < repPerformance.length ? (i < (profile?.included_rep_seats || 3) ? COLORS.green : COLORS.amber) : COLORS.border }} />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: repPerformance.length >= (profile?.included_rep_seats || 3) ? COLORS.amber : COLORS.green }}>
+                      {repPerformance.length}/{profile?.included_rep_seats || 3}
+                    </span>
+                  </div>
                 </div>
-                <a href="https://rovi-app.netlify.app/subscribe" target="_blank" rel="noreferrer"
-                  style={{ padding: '9px 18px', background: COLORS.teal, color: COLORS.dark, border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: '20px' }}>
-                  Upgrade → $999/mo
-                </a>
+                <div style={{ background: 'linear-gradient(135deg, #1C1C1A, #2C2C2A)', border: `0.5px solid ${COLORS.teal}`, borderRadius: '10px', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                      <span style={{ background: COLORS.teal, color: COLORS.dark, fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '20px' }}>⭐ Enterprise</span>
+                      <div style={{ fontSize: '12px', fontWeight: '500', color: '#F0EDE6' }}>Unlimited reps + commission payroll + exports</div>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#5F5E5A' }}>
+                      {repPerformance.length >= (profile?.included_rep_seats || 3) ? "You're at your seat limit — upgrade for unlimited reps" : '$999/mo · Best value at 25+ reps · Dedicated account manager'}
+                    </div>
+                  </div>
+                  <a href="/subscribe" style={{ padding: '8px 16px', background: COLORS.teal, color: COLORS.dark, border: 'none', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: '16px' }}>
+                    Upgrade → $999/mo
+                  </a>
+                </div>
               </div>
             )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
               {[
                 { label: 'Orders this month', value: mtdOrders.length, delta: 'This month' },
@@ -387,7 +410,9 @@ export default function SupplierDashboard() {
             ))}
             {products.length === 0 && <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: COLORS.text3 }}>No products yet. Click "+ Add product" above.</div>}
           </div>
-        )}{/* REP PERFORMANCE */}
+        )}
+
+        {/* REP PERFORMANCE */}
         {activeSection === 'reps' && (
           <>
             <div style={{ marginBottom: '20px' }}>
@@ -479,13 +504,17 @@ export default function SupplierDashboard() {
                     <div style={{ fontSize: '16px', fontWeight: '600', color: COLORS.amber }}>${rep.commission.toFixed(2)} total owed</div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div style={{ fontSize: '12px', color: '#7A4506' }}>MTD: <strong>${rep.mtdRevenue.toFixed(2)}</strong> → <strong>${rep.mtdCommission.toFixed(2)}</strong></div>
-                    <div style={{ fontSize: '12px', color: '#7A4506' }}>All-time: <strong>${rep.totalRevenue.toFixed(2)}</strong> → <strong>${rep.commission.toFixed(2)}</strong></div>
+                    <div style={{ fontSize: '12px', color: '#7A4506' }}>MTD revenue: <strong>${rep.mtdRevenue.toFixed(2)}</strong> → Commission: <strong>${rep.mtdCommission.toFixed(2)}</strong></div>
+                    <div style={{ fontSize: '12px', color: '#7A4506' }}>All-time revenue: <strong>${rep.totalRevenue.toFixed(2)}</strong> → Total commission: <strong>${rep.commission.toFixed(2)}</strong></div>
                   </div>
                   {rep.totalRevenue > 0 && (
                     <div style={{ marginTop: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#7A4506', marginBottom: '4px' }}>
+                        <span>MTD progress</span>
+                        <span>{rep.mtdRevenue > 0 ? Math.round((rep.mtdRevenue / rep.totalRevenue) * 100) : 0}% of all-time</span>
+                      </div>
                       <div style={{ height: '6px', background: '#FAE0B3', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.min((rep.mtdRevenue / rep.totalRevenue) * 100, 100)}%`, height: '100%', background: COLORS.amber, borderRadius: '3px' }} />
+                        <div style={{ width: `${rep.totalRevenue > 0 ? Math.min((rep.mtdRevenue / rep.totalRevenue) * 100, 100) : 0}%`, height: '100%', background: COLORS.amber, borderRadius: '3px' }} />
                       </div>
                     </div>
                   )}
@@ -513,7 +542,7 @@ export default function SupplierDashboard() {
             ))}
 
             <div style={{ background: COLORS.green3, border: `0.5px solid #9FE1CB`, borderRadius: '8px', padding: '12px 16px', fontSize: '12px', color: '#085041', lineHeight: '1.6' }}>
-              <strong>Note:</strong> Commission rate is set at {commissionRate}% and applied to all orders credited to each rep. Use "Edit rate" above to adjust.
+              <strong>Note:</strong> Commission rate is set at {commissionRate}% and applied to all orders credited to each rep — including direct orders placed by doctors. Use "Edit rate" above to adjust your commission structure.
             </div>
           </>
         )}
@@ -595,11 +624,6 @@ export default function SupplierDashboard() {
               ))}
             </div>
           </>
-        )}
-
-        {/* ENTERPRISE */}
-        {activeSection === 'enterprise' && (
-          <EnterprisePanel profile={profile} />
         )}
 
         {/* ADD PRODUCT MODAL */}
