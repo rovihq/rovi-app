@@ -18,10 +18,7 @@ export default function Login() {
   const subscribed = new URLSearchParams(window.location.search).get('subscribed')
   const doctorSignup = new URLSearchParams(window.location.search).get('doctor')
 
-  // Doctor free signup state
   const [showDoctorForm, setShowDoctorForm] = useState(doctorSignup === 'true')
-  const [doctorForm, setDoctorForm] = useState({ firstName: '', lastName: '', email: '', phone: '', company: '', password: '', confirm: '' })
-  const [doctorLoading, setDoctorLoading] = useState(false)
 
   const handleSignIn = async (e) => {
     e.preventDefault()
@@ -34,30 +31,6 @@ export default function Login() {
       return
     }
     navigate('/')
-  }
-
-  const handleDoctorSignup = async (e) => {
-    e.preventDefault()
-    setError('')
-    if (doctorForm.password !== doctorForm.confirm) { setError('Passwords do not match.'); return }
-    setDoctorLoading(true)
-    const fullName = `${doctorForm.firstName} ${doctorForm.lastName}`.trim()
-    const { error } = await supabase.auth.signUp({
-      email: doctorForm.email,
-      password: doctorForm.password,
-      options: {
-        data: {
-          full_name: fullName,
-          company_name: doctorForm.company,
-          phone: doctorForm.phone,
-          role: 'doctor'
-        }
-      }
-    })
-    if (error) { setError(error.message); setDoctorLoading(false); return }
-    setMessage('Account created! You can now sign in.')
-    setShowDoctorForm(false)
-    setDoctorLoading(false)
   }
 
   const handleReset = async (e) => {
@@ -113,27 +86,24 @@ export default function Login() {
           {error && <div style={{ background: '#3D1A1A', color: '#F87171', padding: '10px 12px', borderRadius: '7px', fontSize: '13px', marginBottom: '12px' }}>{error}</div>}
           {message && <div style={{ background: '#0F2E24', color: '#5DCAA5', padding: '10px 12px', borderRadius: '7px', fontSize: '13px', marginBottom: '12px' }}>{message}</div>}
 
-          {/* DOCTOR FREE SIGNUP */}
+          {/* DOCTOR FREE SIGNUP — info only, accounts created by rep invite */}
           {showDoctorForm ? (
             <>
-              <div style={{ fontSize: '16px', fontWeight: '500', color: '#F0EDE6', marginBottom: '4px' }}>Create your free account</div>
-              <div style={{ fontSize: '13px', color: '#5F5E5A', marginBottom: '20px' }}>Rovi is always free for doctors and clinics.</div>
-              <form onSubmit={handleDoctorSignup}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input style={{ ...inputStyle, flex: 1 }} placeholder="First name" value={doctorForm.firstName} onChange={e => setDoctorForm({...doctorForm, firstName: e.target.value})} required />
-                  <input style={{ ...inputStyle, flex: 1 }} placeholder="Last name" value={doctorForm.lastName} onChange={e => setDoctorForm({...doctorForm, lastName: e.target.value})} required />
-                </div>
-                <input style={inputStyle} type="email" placeholder="Email address" value={doctorForm.email} onChange={e => setDoctorForm({...doctorForm, email: e.target.value})} required />
-                <input style={inputStyle} type="tel" placeholder="Phone number" value={doctorForm.phone} onChange={e => setDoctorForm({...doctorForm, phone: e.target.value})} required />
-                <input style={inputStyle} placeholder="Practice / clinic name" value={doctorForm.company} onChange={e => setDoctorForm({...doctorForm, company: e.target.value})} required />
-                <input style={inputStyle} type="password" placeholder="Create password" value={doctorForm.password} onChange={e => setDoctorForm({...doctorForm, password: e.target.value})} required />
-                <input style={inputStyle} type="password" placeholder="Confirm password" value={doctorForm.confirm} onChange={e => setDoctorForm({...doctorForm, confirm: e.target.value})} required />
-                <button type="submit" style={{ ...btnStyle, background: '#EF9F27', color: '#0D0D0B' }} disabled={doctorLoading}>
-                  {doctorLoading ? 'Creating account...' : 'Create free account'}
-                </button>
-              </form>
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>🏥</div>
+                <div style={{ fontSize: '16px', fontWeight: '500', color: '#F0EDE6', marginBottom: '6px' }}>Doctor accounts are free</div>
+                <div style={{ fontSize: '13px', color: '#5F5E5A', lineHeight: '1.6' }}>Rovi doctor accounts are set up by your sales rep — they'll send you a free invite email.</div>
+              </div>
+              <div style={{ background: '#0F2E24', border: '0.5px solid #1D9E75', borderRadius: '8px', padding: '14px 16px', marginBottom: '10px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '500', color: '#5DCAA5', marginBottom: '4px' }}>Already have an invite?</div>
+                <div style={{ fontSize: '12px', color: '#5F5E5A', lineHeight: '1.5' }}>Check your email for the invite link from your rep. Click it to set up your free account.</div>
+              </div>
+              <div style={{ background: '#222220', border: '0.5px solid #2C2C2A', borderRadius: '8px', padding: '14px 16px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '500', color: '#F0EDE6', marginBottom: '4px' }}>Don't have an invite yet?</div>
+                <div style={{ fontSize: '12px', color: '#5F5E5A', lineHeight: '1.5' }}>Contact your sales rep and ask them to add you to their Rovi territory.</div>
+              </div>
               <button onClick={() => setShowDoctorForm(false)}
-                style={{ width: '100%', padding: '10px', background: 'transparent', color: '#5F5E5A', border: 'none', fontSize: '13px', cursor: 'pointer', marginTop: '8px', fontFamily: 'DM Sans, sans-serif' }}>
+                style={{ width: '100%', padding: '10px', background: 'transparent', color: '#5F5E5A', border: 'none', fontSize: '13px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
                 ← Back to sign in
               </button>
             </>

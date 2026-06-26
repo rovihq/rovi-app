@@ -156,16 +156,31 @@ export default function RepDashboard() {
   const inviteDoctor = async () => {
     if (!newDoctor.email || !newDoctor.full_name) return
     setInviteMsg('')
-    const { error } = await supabase.auth.signUp({
-      email: newDoctor.email, password: 'TempPass123!',
-      options: { data: { full_name: newDoctor.full_name, company_name: newDoctor.company_name, phone: newDoctor.phone, role: 'doctor' } }
-    })
-    if (error) { setInviteMsg('Error: ' + error.message); return }
-    const { data: newUser } = await supabase.from('profiles').select('id').eq('full_name', newDoctor.full_name).single()
-    if (newUser) await supabase.from('profiles').update({ assigned_rep_id: profile.id }).eq('id', newUser.id)
-    setInviteMsg('Doctor invited successfully!')
-    fetchAll()
-    setTimeout(() => { setShowAddDoctor(false); setInviteMsg(''); setNewDoctor({ full_name: '', company_name: '', email: '', phone: '', specialty: 'Hormone / GLP-1' }) }, 2000)
+    try {
+      const res = await fetch('/.netlify/functions/invite-doctor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doctorEmail: newDoctor.email,
+          doctorName: newDoctor.full_name,
+          practiceNamed: newDoctor.company_name,
+          repId: profile.id,
+          repName: profile.full_name,
+          repCompany: profile.company_name
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send invite')
+      if (data.isNew) {
+        setInviteMsg(`✓ Invite sent to ${newDoctor.email} — they'll receive an email to set up their free account`)
+      } else {
+        setInviteMsg(`✓ ${newDoctor.full_name} already has a Rovi account — they've been connected to you`)
+      }
+      fetchAll()
+      setTimeout(() => { setShowAddDoctor(false); setInviteMsg(''); setNewDoctor({ full_name: '', company_name: '', email: '', phone: '', specialty: 'Hormone / GLP-1' }) }, 3000)
+    } catch (err) {
+      setInviteMsg('Error: ' + err.message)
+    }
   }
 
   const placeOrderForDoctor = async () => {
