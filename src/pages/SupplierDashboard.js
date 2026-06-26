@@ -721,6 +721,27 @@ export default function SupplierDashboard() {
                 Upgrade to Enterprise →
               </a>
             </div>
+
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.text3, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>Coming soon</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '10px' }}>
+                {[
+                  { icon: '🔔', label: 'Email notifications', desc: 'Get notified on new orders, low stock, and rep activity' },
+                  { icon: '📱', label: 'Mobile app', desc: 'Manage your catalog and orders from your phone' },
+                  { icon: '💳', label: 'Direct deposit', desc: 'Pay rep commissions directly via ACH transfer' },
+                  { icon: '📄', label: '1099 export', desc: 'Generate IRS-ready 1099 forms for all your reps' },
+                ].map(item => (
+                  <div key={item.label} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px', display: 'flex', gap: '12px', alignItems: 'flex-start', opacity: 0.7 }}>
+                    <span style={{ fontSize: '20px', lineHeight: 1 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark, marginBottom: '3px' }}>{item.label}</div>
+                      <div style={{ fontSize: '11px', color: COLORS.text3, lineHeight: '1.5' }}>{item.desc}</div>
+                      <div style={{ marginTop: '6px', fontSize: '10px', fontWeight: '600', color: COLORS.text3, background: COLORS.bg2, display: 'inline-block', padding: '2px 8px', borderRadius: '20px', letterSpacing: '0.5px' }}>COMING SOON</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </>
         )}
 
