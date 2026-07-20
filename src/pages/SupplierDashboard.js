@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import ChatPanel from '../components/ChatPanel'
 import Logo from '../components/Logo'
 import EnterprisePanel from '../components/EnterprisePanel'
+import CatalogUpload from '../components/CatalogUpload'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -45,7 +46,7 @@ function ConnectedReps({ supplierId, onMessage }) {
   if (reps.length === 0) return <div style={{ color: '#A8A8A2', fontSize: '13px', padding: '20px', textAlign: 'center' }}>No reps connected yet</div>
   return reps.map(r => (
     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: '0.5px solid #E2E0D8' }}>
-      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600' }}>{r.full_name?.charAt(0)}</div>
+      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600' }}>{r.full_name?.charAt(0)}</div>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A' }}>{r.full_name}</div>
         <div style={{ fontSize: '11px', color: '#A8A8A2' }}>{r.company_name} · {r.territory}</div>
@@ -63,6 +64,7 @@ export default function SupplierDashboard() {
   const [notifications, setNotifications] = useState([])
   const [showNotif, setShowNotif] = useState(false)
   const [showAddProduct, setShowAddProduct] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
   const [newProduct, setNewProduct] = useState({ name: '', category: 'GLP-1', description: '', price_per_unit: '', stock_quantity: '' })
   const [orderFilter, setOrderFilter] = useState('All')
   const [loading, setLoading] = useState(true)
@@ -197,10 +199,10 @@ export default function SupplierDashboard() {
 
   const sidebarItems = [
     { id: 'overview', label: 'Overview', icon: '⊞' },
-    { id: 'orders', label: 'Orders', icon: '≡', badge: orders.filter(o => o.status === 'New').length },
+    { id: 'orders', label: 'Orders', icon: '⚡', badge: orders.filter(o => o.status === 'New').length },
     { id: 'catalog', label: 'Catalog', icon: '+' },
-    { id: 'reps', label: 'Rep Performance', icon: '📊' },
-    { id: 'insights', label: 'Demand Insights', icon: '↗' },
+    { id: 'reps', label: 'Rep Performance', icon: '👥' },
+    { id: 'insights', label: 'Demand Insights', icon: '↑' },
     ...(profile?.account_tier === 'enterprise' ? [{ id: 'enterprise', label: 'Enterprise', icon: '⭐' }] : []),
     { id: 'addons', label: 'Add-ons', icon: '＋' },
     { id: 'admin', label: 'Admin', icon: '⚙' },
@@ -273,7 +275,10 @@ export default function SupplierDashboard() {
               🔔 Alerts {unreadCount > 0 && <span style={{ background: COLORS.amber, color: COLORS.dark, fontSize: '9px', fontWeight: '600', padding: '1px 5px', borderRadius: '10px', marginLeft: '4px' }}>{unreadCount}</span>}
             </button>
             {activeSection === 'catalog' && (
-              <button onClick={() => setShowAddProduct(true)} style={{ padding: '8px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>+ Add product</button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setShowUpload(true)} style={{ padding: '8px 16px', background: COLORS.bg2, color: COLORS.text2, border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>↑ Upload CSV / Excel</button>
+                <button onClick={() => setShowAddProduct(true)} style={{ padding: '8px 16px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>+ Add product</button>
+              </div>
             )}
           </div>
         </div>
@@ -452,7 +457,7 @@ export default function SupplierDashboard() {
                 <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '10px' }}>{p.category} · ${Number(p.price_per_unit).toFixed(2)}/unit</div>
                 <StockBar quantity={p.stock_quantity} />
                 <div style={{ fontSize: '11px', color: p.stock_quantity < 20 ? COLORS.red : COLORS.text3, marginTop: '5px', marginBottom: '12px' }}>
-                  {p.stock_quantity} units {p.stock_quantity < 20 ? '— CRITICAL' : p.stock_quantity < 50 ? '— Low' : ''}
+                  {p.stock_quantity} units {p.stock_quantity < 20 ? '⚠ CRITICAL' : p.stock_quantity < 50 ? '⚡ Low' : ''}
                 </div>
                 <div style={{ fontSize: '12px', color: COLORS.text2, lineHeight: '1.5' }}>{p.description}</div>
               </div>
@@ -535,7 +540,7 @@ export default function SupplierDashboard() {
             ) : repPerformance.map((rep, idx) => (
               <div key={rep.id} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600', flexShrink: 0 }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '600', flexShrink: 0 }}>
                     {rep.full_name?.charAt(0)}
                   </div>
                   <div style={{ flex: 1 }}>
@@ -653,98 +658,6 @@ export default function SupplierDashboard() {
           </>
         )}
 
-        {/* ENTERPRISE */}
-        {activeSection === 'enterprise' && profile?.account_tier === 'enterprise' && (
-          <EnterprisePanel profile={profile} />
-        )}
-
-        {/* ADD-ONS */}
-        {activeSection === 'addons' && (
-          <>
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '13px', color: COLORS.text3 }}>Enhance your Rovi plan with additional features and seats</div>
-            </div>
-
-            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>Current plan</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: '600', color: COLORS.dark }}>
-                    {profile?.account_tier === 'enterprise' ? '⭐ Enterprise' : 'Supplier'} — ${profile?.account_tier === 'enterprise' ? '999' : '299'}/mo
-                  </div>
-                  <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '4px' }}>
-                    {profile?.account_tier === 'enterprise'
-                      ? 'Unlimited rep seats · Commission payroll · Priority support'
-                      : `${profile?.included_rep_seats || 3} rep seats included · $${profile?.per_seat_price || 25}/mo per additional seat`}
-                  </div>
-                </div>
-                {profile?.account_tier !== 'enterprise' && (
-                  <a href="/subscribe" style={{ padding: '9px 18px', background: COLORS.green, color: 'white', borderRadius: '7px', fontSize: '13px', fontWeight: '500', textDecoration: 'none' }}>
-                    Upgrade to Enterprise
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {profile?.account_tier !== 'enterprise' && (
-              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '4px' }}>Additional rep seats</div>
-                <div style={{ fontSize: '12px', color: COLORS.text3, marginBottom: '16px' }}>
-                  You're using {repPerformance.length} of {profile?.included_rep_seats || 3} included seats.
-                  Additional seats are billed at ${profile?.per_seat_price || 25}/mo each.
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
-                  {[1, 3, 5].map(n => (
-                    <div key={n} style={{ border: `0.5px solid ${COLORS.border}`, borderRadius: '9px', padding: '16px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '22px', fontWeight: '600', color: COLORS.dark, marginBottom: '2px' }}>+{n} seat{n > 1 ? 's' : ''}</div>
-                      <div style={{ fontSize: '13px', color: COLORS.text3, marginBottom: '12px' }}>+${n * (profile?.per_seat_price || 25)}/mo</div>
-                      <a href="/subscribe" style={{ display: 'block', padding: '8px', background: COLORS.bg2, color: COLORS.green, border: `0.5px solid ${COLORS.border}`, borderRadius: '6px', fontSize: '12px', fontWeight: '500', textDecoration: 'none' }}>
-                        Add seats →
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div style={{ background: 'linear-gradient(135deg, #1C1C1A, #2C2C2A)', border: `0.5px solid ${COLORS.teal}`, borderRadius: '10px', padding: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <span style={{ background: COLORS.teal, color: COLORS.dark, fontSize: '10px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px' }}>⭐ Enterprise — $999/mo</span>
-              </div>
-              <div style={{ fontSize: '15px', fontWeight: '500', color: '#F0EDE6', marginBottom: '6px' }}>Everything in Supplier, plus:</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '18px' }}>
-                {['Unlimited rep seats', 'Commission payroll exports', 'Dedicated account manager', 'Priority support', 'Custom onboarding', 'Advanced analytics'].map(f => (
-                  <div key={f} style={{ fontSize: '12px', color: '#A8A8A2' }}>✓ {f}</div>
-                ))}
-              </div>
-              <a href="/subscribe" style={{ display: 'inline-block', padding: '10px 24px', background: COLORS.teal, color: COLORS.dark, borderRadius: '7px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
-                Upgrade to Enterprise →
-              </a>
-            </div>
-
-            <div style={{ marginTop: '16px' }}>
-              <div style={{ fontSize: '12px', fontWeight: '500', color: COLORS.text3, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>Coming soon</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '10px' }}>
-                {[
-                  { icon: '🔔', label: 'Email notifications', desc: 'Get notified on new orders, low stock, and rep activity' },
-                  { icon: '📱', label: 'Mobile app', desc: 'Manage your catalog and orders from your phone' },
-                  { icon: '💳', label: 'Direct deposit', desc: 'Pay rep commissions directly via ACH transfer' },
-                  { icon: '📄', label: '1099 export', desc: 'Generate IRS-ready 1099 forms for all your reps' },
-                ].map(item => (
-                  <div key={item.label} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px', display: 'flex', gap: '12px', alignItems: 'flex-start', opacity: 0.7 }}>
-                    <span style={{ fontSize: '20px', lineHeight: 1 }}>{item.icon}</span>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark, marginBottom: '3px' }}>{item.label}</div>
-                      <div style={{ fontSize: '11px', color: COLORS.text3, lineHeight: '1.5' }}>{item.desc}</div>
-                      <div style={{ marginTop: '6px', fontSize: '10px', fontWeight: '600', color: COLORS.text3, background: COLORS.bg2, display: 'inline-block', padding: '2px 8px', borderRadius: '20px', letterSpacing: '0.5px' }}>COMING SOON</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
         {/* ADMIN */}
         {activeSection === 'admin' && (
           <>
@@ -788,6 +701,120 @@ export default function SupplierDashboard() {
           </>
         )}
 
+        {/* ENTERPRISE */}
+        {activeSection === 'enterprise' && profile?.account_tier === 'enterprise' && (
+          <EnterprisePanel profile={profile} />
+        )}
+
+        {/* ADD-ONS */}
+        {activeSection === 'addons' && (
+          <>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', color: COLORS.text3 }}>Enhance your Rovi plan with additional features and seats</div>
+            </div>
+
+            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>Current plan</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '600', color: COLORS.dark }}>
+                    {profile?.account_tier === 'enterprise' ? '⭐ Enterprise' : 'Supplier'} — ${profile?.account_tier === 'enterprise' ? '999' : '299'}/mo
+                  </div>
+                  <div style={{ fontSize: '12px', color: COLORS.text3, marginTop: '3px' }}>
+                    {profile?.account_tier === 'enterprise' ? 'Unlimited rep seats included' : `${profile?.included_rep_seats || 3} rep seats included · $${profile?.per_seat_price || 25}/mo per additional seat`}
+                  </div>
+                </div>
+                <span style={{ background: profile?.account_tier === 'enterprise' ? COLORS.dark : COLORS.green3, color: profile?.account_tier === 'enterprise' ? COLORS.teal : '#085041', fontSize: '11px', fontWeight: '600', padding: '4px 10px', borderRadius: '20px' }}>
+                  {profile?.account_tier === 'enterprise' ? '⭐ Enterprise' : 'Standard'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+
+              {profile?.account_tier !== 'enterprise' && (
+                <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '22px' }}>
+                  <div style={{ fontSize: '24px', marginBottom: '12px' }}>👤</div>
+                  <div style={{ fontSize: '15px', fontWeight: '500', color: COLORS.dark, marginBottom: '6px' }}>Add a Rep</div>
+                  <div style={{ fontSize: '13px', color: COLORS.text3, marginBottom: '16px', lineHeight: '1.5' }}>
+                    Connect a rep to your account. First {profile?.included_rep_seats || 3} seats are included. Additional seats are ${profile?.per_seat_price || 25}/rep/mo.
+                  </div>
+                  <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '12px' }}>
+                    <span style={{ fontWeight: '500', color: repPerformance.length >= (profile?.included_rep_seats || 3) ? COLORS.amber : COLORS.green }}>
+                      {repPerformance.length}/{profile?.included_rep_seats || 3} seats used
+                    </span>
+                    {repPerformance.length >= (profile?.included_rep_seats || 3) && <span style={{ color: COLORS.amber }}> — Next seat billed at ${profile?.per_seat_price || 25}/mo</span>}
+                  </div>
+                  <button onClick={() => { fetchAllReps(); setShowAddRep(true) }}
+                    style={{ width: '100%', padding: '10px', background: COLORS.bg2, color: COLORS.text2, border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', marginBottom: '8px' }}>
+                    + Connect existing rep
+                  </button>
+                  <button onClick={() => setShowCreateRep(true)}
+                    style={{ width: '100%', padding: '10px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+                    + Create new rep
+                  </button>
+                </div>
+              )}
+
+              {profile?.account_tier !== 'enterprise' && (
+                <div style={{ background: COLORS.dark, border: `0.5px solid ${COLORS.teal}`, borderRadius: '10px', padding: '22px', boxShadow: '0 0 24px rgba(93,202,165,0.08)' }}>
+                  <div style={{ fontSize: '24px', marginBottom: '12px' }}>⭐</div>
+                  <div style={{ fontSize: '15px', fontWeight: '500', color: '#F0EDE6', marginBottom: '6px' }}>Upgrade to Enterprise</div>
+                  <div style={{ fontSize: '13px', color: '#5F5E5A', marginBottom: '16px', lineHeight: '1.5' }}>
+                    Unlimited reps, commission payroll automation, CSV/PDF exports, 1099s and a dedicated account manager.
+                  </div>
+                  <div style={{ fontSize: '22px', fontWeight: '600', color: COLORS.teal, marginBottom: '4px' }}>$999<span style={{ fontSize: '13px', color: '#5F5E5A', fontWeight: '400' }}>/mo</span></div>
+                  <div style={{ fontSize: '11px', color: '#5F5E5A', marginBottom: '16px' }}>
+                    {repPerformance.length >= 25 ? `🔥 You're at the break-even point — Enterprise saves you money` : `Best value at 25+ reps · You have ${repPerformance.length} reps`}
+                  </div>
+                  <a href="/subscribe"
+                    style={{ display: 'block', textAlign: 'center', padding: '10px', background: COLORS.teal, color: COLORS.dark, borderRadius: '7px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+                    Upgrade now →
+                  </a>
+                </div>
+              )}
+
+              {[
+                { icon: '📧', title: 'Email notifications', desc: 'Get notified by email for new orders, low stock alerts and commission approvals.' },
+                { icon: '📱', title: 'Mobile app access', desc: 'Access your supplier dashboard from iOS and Android. Manage orders on the go.' },
+                { icon: '💳', title: 'Direct deposit payroll', desc: 'Pay reps directly from Rovi via Stripe Connect. One click, instant transfer.' },
+                { icon: '📄', title: '1099 export', desc: 'Generate year-end 1099 tax documents for all your contractor reps.' },
+              ].map((addon, i) => (
+                <div key={i} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '22px', opacity: 0.75 }}>
+                  <div style={{ fontSize: '24px', marginBottom: '12px' }}>{addon.icon}</div>
+                  <div style={{ fontSize: '15px', fontWeight: '500', color: COLORS.dark, marginBottom: '6px' }}>{addon.title}</div>
+                  <div style={{ fontSize: '13px', color: COLORS.text3, marginBottom: '16px', lineHeight: '1.5' }}>{addon.desc}</div>
+                  <span style={{ display: 'inline-block', padding: '6px 14px', background: COLORS.bg2, color: COLORS.text3, borderRadius: '20px', fontSize: '12px', fontWeight: '500' }}>⏳ Coming soon</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: COLORS.green3, border: `0.5px solid #9FE1CB`, borderRadius: '8px', padding: '14px 16px', fontSize: '12px', color: '#085041' }}>
+              Need something custom? Email us at <a href="mailto:info@rovihq.com" style={{ color: COLORS.green, fontWeight: '500' }}>info@rovihq.com</a> and we'll work something out.
+            </div>
+          </>
+        )}
+
+        {/* CATALOG UPLOAD MODAL */}
+        {showUpload && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600, padding: '24px' }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '680px', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <div>
+                  <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark, marginBottom: '2px' }}>Upload catalog</div>
+                  <div style={{ fontSize: '12px', color: COLORS.text3 }}>Import multiple products at once from Excel or CSV</div>
+                </div>
+                <button onClick={() => setShowUpload(false)}
+                  style={{ width: '28px', height: '28px', borderRadius: '50%', border: `0.5px solid ${COLORS.border}`, background: 'white', cursor: 'pointer', fontSize: '16px', color: COLORS.text3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+              <CatalogUpload
+                supplierId={profile?.id}
+                onComplete={() => { setShowUpload(false); fetchAll() }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* ADD PRODUCT MODAL */}
         {showAddProduct && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
@@ -811,61 +838,69 @@ export default function SupplierDashboard() {
 
         {/* CONNECT EXISTING REP MODAL */}
         {showAddRep && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 700 }}>
             <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '460px', maxWidth: '90vw', maxHeight: '80vh', overflowY: 'auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ fontSize: '16px', fontWeight: '500' }}>Connect existing rep</div>
-                <button onClick={() => setShowAddRep(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: COLORS.text3 }}>×</button>
-              </div>
-              <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '16px' }}>Select a rep from the Rovi network to connect to your account.</div>
+              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>Connect existing rep</div>
+              <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>Select a rep already on Rovi to connect to your account.</div>
               {allRepsPool.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: COLORS.text3, fontSize: '13px' }}>No unconnected reps found in the network.</div>
+                <div style={{ textAlign: 'center', padding: '30px', color: COLORS.text3, fontSize: '13px' }}>No available reps on Rovi yet. Create a new rep instead.</div>
               ) : allRepsPool.map(r => (
-                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
-                  <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600', flexShrink: 0 }}>
-                    {r.full_name?.charAt(0)}
-                  </div>
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600' }}>{r.full_name?.charAt(0)}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{r.full_name}</div>
-                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>{r.company_name} · {r.territory}</div>
+                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>{r.company_name} · {r.territory || 'No territory'}</div>
                   </div>
-                  <button onClick={() => connectRep(r.id)}
-                    style={{ padding: '6px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
-                    Connect
-                  </button>
+                  <button onClick={() => connectRep(r.id)} style={{ padding: '6px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>Connect</button>
                 </div>
               ))}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button onClick={() => setShowAddRep(false)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Close</button>
+              </div>
             </div>
           </div>
         )}
 
         {/* CREATE NEW REP MODAL */}
         {showCreateRep && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600 }}>
-            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <div style={{ fontSize: '16px', fontWeight: '500' }}>Create new rep</div>
-                <button onClick={() => { setShowCreateRep(false); setRepMsg('') }} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: COLORS.text3 }}>×</button>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 700 }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '460px', maxWidth: '90vw' }}>
+              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>Create new rep</div>
+              <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>Create a rep account and connect them to your supplier automatically.</div>
+              {repMsg && <div style={{ padding: '10px 12px', background: repMsg.includes('Error') ? '#FCEBEB' : COLORS.green3, color: repMsg.includes('Error') ? '#791F1F' : '#085041', borderRadius: '7px', fontSize: '13px', marginBottom: '12px' }}>{repMsg}</div>}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px' }}>Full name *</label>
+                  <input style={inputStyle} value={newRep.full_name} onChange={e => setNewRep({...newRep, full_name: e.target.value})} placeholder="Jake Martinez" />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px' }}>Email *</label>
+                  <input style={inputStyle} type="email" value={newRep.email} onChange={e => setNewRep({...newRep, email: e.target.value})} placeholder="jake@example.com" />
+                </div>
               </div>
-              <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>We'll create their account and connect them to you automatically.</div>
-              {repMsg && (
-                <div style={{ padding: '10px 12px', borderRadius: '7px', fontSize: '13px', marginBottom: '12px', background: repMsg.startsWith('Error') ? '#FCEBEB' : COLORS.green3, color: repMsg.startsWith('Error') ? '#791F1F' : '#085041' }}>
-                  {repMsg}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px' }}>Company</label>
+                  <input style={inputStyle} value={newRep.company_name} onChange={e => setNewRep({...newRep, company_name: e.target.value})} placeholder="SW Pharma Reps" />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px' }}>Territory</label>
+                  <input style={inputStyle} value={newRep.territory} onChange={e => setNewRep({...newRep, territory: e.target.value})} placeholder="Dallas, Houston..." />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px' }}>Commission rate (%)</label>
+                <input style={inputStyle} type="number" value={newRep.commission_rate} onChange={e => setNewRep({...newRep, commission_rate: e.target.value})} min="0" max="100" />
+              </div>
+              {repPerformance.length >= (profile?.included_rep_seats || 3) && (
+                <div style={{ background: COLORS.amber2, borderRadius: '7px', padding: '10px 12px', fontSize: '12px', color: '#633806', marginBottom: '10px' }}>
+                  ⚠ You're at your {profile?.included_rep_seats || 3} included seats. This rep will be billed at ${profile?.per_seat_price || 25}/mo extra.
                 </div>
               )}
-              <input style={inputStyle} placeholder="Full name" value={newRep.full_name} onChange={e => setNewRep({...newRep, full_name: e.target.value})} />
-              <input style={inputStyle} type="email" placeholder="Email address" value={newRep.email} onChange={e => setNewRep({...newRep, email: e.target.value})} />
-              <input style={inputStyle} placeholder="Company name" value={newRep.company_name} onChange={e => setNewRep({...newRep, company_name: e.target.value})} />
-              <input style={inputStyle} placeholder="Territory (e.g. Texas)" value={newRep.territory} onChange={e => setNewRep({...newRep, territory: e.target.value})} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <input style={{ ...inputStyle, marginBottom: 0, flex: 1 }} type="number" placeholder="Commission %" value={newRep.commission_rate} onChange={e => setNewRep({...newRep, commission_rate: e.target.value})} />
-                <span style={{ fontSize: '13px', color: COLORS.text2, whiteSpace: 'nowrap' }}>% commission</span>
-              </div>
-              <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '16px' }}>They'll receive an email to set their password. Default temp password: TempPass123!</div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button onClick={() => { setShowCreateRep(false); setRepMsg('') }} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-                <button onClick={createAndConnectRep} disabled={creatingRep}
-                  style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500', opacity: creatingRep ? 0.6 : 1 }}>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button onClick={() => setShowCreateRep(false)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                <button onClick={createAndConnectRep} disabled={creatingRep || !newRep.email || !newRep.full_name}
+                  style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
                   {creatingRep ? 'Creating...' : 'Create rep'}
                 </button>
               </div>
