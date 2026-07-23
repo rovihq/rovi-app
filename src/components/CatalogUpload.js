@@ -52,6 +52,7 @@ export default function CatalogUpload({ supplierId, onComplete }) {
           return
         }
 
+        // Find header row — flexible matching
         const headerRow = rows[0].map(h => String(h || '').toLowerCase().trim())
         const nameIdx = headerRow.findIndex(h => h.includes('name') || h.includes('product'))
         const catIdx = headerRow.findIndex(h => h.includes('category') || h.includes('cat'))
@@ -115,12 +116,29 @@ export default function CatalogUpload({ supplierId, onComplete }) {
     let count = 0
 
     for (const product of parsedRows) {
-      const { error } = await supabase.from('products').insert({
-        ...product,
-        supplier_id: supplierId,
-        is_active: true,
-      })
-      if (!error) count++
+      const { data: existing } = await supabase
+        .from('products')
+        .select('id')
+        .eq('supplier_id', supplierId)
+        .ilike('name', product.name)
+        .single()
+
+      if (existing) {
+        await supabase.from('products').update({
+          category: product.category,
+          description: product.description,
+          price_per_unit: product.price_per_unit,
+          stock_quantity: product.stock_quantity,
+          is_active: true,
+        }).eq('id', existing.id)
+      } else {
+        await supabase.from('products').insert({
+          ...product,
+          supplier_id: supplierId,
+          is_active: true,
+        })
+      }
+      count++
       setImportedCount(count)
     }
 
@@ -284,7 +302,7 @@ export default function CatalogUpload({ supplierId, onComplete }) {
             {importedCount} product{importedCount !== 1 ? 's' : ''} imported!
           </div>
           <div style={{ fontSize: '13px', color: COLORS.text3, marginBottom: '28px' }}>
-            Your catalog has been updated. Products are now visible to connected doctors and reps.
+            Your catalog has been updated. Existing products were updated, new products were added. All changes are now visible to connected doctors and reps.
           </div>
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
             <button onClick={reset}

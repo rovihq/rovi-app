@@ -65,6 +65,7 @@ export default function SupplierDashboard() {
   const [showNotif, setShowNotif] = useState(false)
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
+  const [editProduct, setEditProduct] = useState(null)
   const [newProduct, setNewProduct] = useState({ name: '', category: 'GLP-1', description: '', price_per_unit: '', stock_quantity: '' })
   const [orderFilter, setOrderFilter] = useState('All')
   const [loading, setLoading] = useState(true)
@@ -450,20 +451,38 @@ export default function SupplierDashboard() {
 
         {/* CATALOG */}
         {activeSection === 'catalog' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
-            {products.map(p => (
-              <div key={p.id} style={{ background: 'white', border: `0.5px solid ${p.stock_quantity < 20 ? COLORS.red : COLORS.border}`, borderRadius: '10px', padding: '20px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark, marginBottom: '4px' }}>{p.name}</div>
-                <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '10px' }}>{p.category} · ${Number(p.price_per_unit).toFixed(2)}/unit</div>
-                <StockBar quantity={p.stock_quantity} />
-                <div style={{ fontSize: '11px', color: p.stock_quantity < 20 ? COLORS.red : COLORS.text3, marginTop: '5px', marginBottom: '12px' }}>
-                  {p.stock_quantity} units {p.stock_quantity < 20 ? '⚠ CRITICAL' : p.stock_quantity < 50 ? '⚡ Low' : ''}
-                </div>
-                <div style={{ fontSize: '12px', color: COLORS.text2, lineHeight: '1.5' }}>{p.description}</div>
+          <>
+            {products.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px', color: COLORS.text3 }}>
+                No products yet. Click "+ Add product" or "↑ Upload CSV / Excel" above.
               </div>
-            ))}
-            {products.length === 0 && <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', color: COLORS.text3 }}>No products yet. Click "+ Add product" above.</div>}
-          </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
+                {products.map(p => (
+                  <div key={p.id} style={{ background: 'white', border: `0.5px solid ${p.stock_quantity < 20 ? COLORS.red : COLORS.border}`, borderRadius: '10px', padding: '20px', position: 'relative' }}>
+                    <button onClick={() => setEditProduct(p)}
+                      style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', background: COLORS.bg2, color: COLORS.text2, border: `0.5px solid ${COLORS.border}`, borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}>
+                      Edit
+                    </button>
+                    <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark, marginBottom: '4px', paddingRight: '40px' }}>{p.name}</div>
+                    <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '10px' }}>{p.category} · ${Number(p.price_per_unit).toFixed(2)}/unit</div>
+                    <StockBar quantity={p.stock_quantity} />
+                    <div style={{ fontSize: '11px', color: p.stock_quantity < 20 ? COLORS.red : COLORS.text3, marginTop: '5px', marginBottom: '12px' }}>
+                      {p.stock_quantity} units {p.stock_quantity < 20 ? '⚠ CRITICAL' : p.stock_quantity < 50 ? '⚡ Low' : ''}
+                    </div>
+                    <div style={{ fontSize: '12px', color: COLORS.text2, lineHeight: '1.5' }}>{p.description}</div>
+                    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `0.5px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: p.is_active ? COLORS.green : COLORS.text3 }}>{p.is_active ? '✓ Active' : '✗ Hidden'}</span>
+                      <button onClick={async () => { await supabase.from('products').update({ is_active: !p.is_active }).eq('id', p.id); fetchAll() }}
+                        style={{ fontSize: '11px', padding: '3px 10px', background: 'transparent', border: `0.5px solid ${COLORS.border}`, borderRadius: '5px', cursor: 'pointer', color: COLORS.text2 }}>
+                        {p.is_active ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* REP PERFORMANCE */}
@@ -712,7 +731,6 @@ export default function SupplierDashboard() {
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '13px', color: COLORS.text3 }}>Enhance your Rovi plan with additional features and seats</div>
             </div>
-
             <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
               <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>Current plan</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -731,7 +749,6 @@ export default function SupplierDashboard() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
-
               {profile?.account_tier !== 'enterprise' && (
                 <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '22px' }}>
                   <div style={{ fontSize: '24px', marginBottom: '12px' }}>👤</div>
@@ -743,7 +760,7 @@ export default function SupplierDashboard() {
                     <span style={{ fontWeight: '500', color: repPerformance.length >= (profile?.included_rep_seats || 3) ? COLORS.amber : COLORS.green }}>
                       {repPerformance.length}/{profile?.included_rep_seats || 3} seats used
                     </span>
-                    {repPerformance.length >= (profile?.included_rep_seats || 3) && <span style={{ color: COLORS.amber }}> — Next seat billed at ${profile?.per_seat_price || 25}/mo</span>}
+                    {repPerformance.length >= (profile?.included_rep_seats || 3) && <span style={{ color: COLORS.amber }}> · Next seat billed at ${profile?.per_seat_price || 25}/mo</span>}
                   </div>
                   <button onClick={() => { fetchAllReps(); setShowAddRep(true) }}
                     style={{ width: '100%', padding: '10px', background: COLORS.bg2, color: COLORS.text2, border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', marginBottom: '8px' }}>
@@ -755,7 +772,6 @@ export default function SupplierDashboard() {
                   </button>
                 </div>
               )}
-
               {profile?.account_tier !== 'enterprise' && (
                 <div style={{ background: COLORS.dark, border: `0.5px solid ${COLORS.teal}`, borderRadius: '10px', padding: '22px', boxShadow: '0 0 24px rgba(93,202,165,0.08)' }}>
                   <div style={{ fontSize: '24px', marginBottom: '12px' }}>⭐</div>
@@ -773,7 +789,6 @@ export default function SupplierDashboard() {
                   </a>
                 </div>
               )}
-
               {[
                 { icon: '📧', title: 'Email notifications', desc: 'Get notified by email for new orders, low stock alerts and commission approvals.' },
                 { icon: '📱', title: 'Mobile app access', desc: 'Access your supplier dashboard from iOS and Android. Manage orders on the go.' },
@@ -793,6 +808,100 @@ export default function SupplierDashboard() {
               Need something custom? Email us at <a href="mailto:info@rovihq.com" style={{ color: COLORS.green, fontWeight: '500' }}>info@rovihq.com</a> and we'll work something out.
             </div>
           </>
+        )}
+
+        {/* EDIT PRODUCT MODAL */}
+        {editProduct && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 700, padding: '24px' }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '480px', maxWidth: '95vw' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <div style={{ fontSize: '16px', fontWeight: '500', color: COLORS.dark }}>Edit product</div>
+                <button onClick={() => setEditProduct(null)}
+                  style={{ width: '28px', height: '28px', borderRadius: '50%', border: `0.5px solid ${COLORS.border}`, background: 'white', cursor: 'pointer', fontSize: '16px', color: COLORS.text3 }}>×</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px', fontWeight: '500' }}>Product name</label>
+                  <input style={inputStyle} value={editProduct.name}
+                    onChange={e => setEditProduct({...editProduct, name: e.target.value})} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px', fontWeight: '500' }}>Category</label>
+                    <select style={inputStyle} value={editProduct.category}
+                      onChange={e => setEditProduct({...editProduct, category: e.target.value})}>
+                      {['GLP-1', 'Hormone', 'Dermatology', 'Peptide', 'Vitamin', 'Injectable', 'Other'].map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px', fontWeight: '500' }}>Price per unit ($)</label>
+                    <input style={inputStyle} type="number" step="0.01" value={editProduct.price_per_unit}
+                      onChange={e => setEditProduct({...editProduct, price_per_unit: e.target.value})} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px', fontWeight: '500' }}>
+                    Stock quantity
+                    <span style={{ marginLeft: '8px', fontWeight: '400', color: editProduct.stock_quantity < 20 ? COLORS.red : editProduct.stock_quantity < 50 ? COLORS.amber : COLORS.green }}>
+                      {editProduct.stock_quantity < 20 ? '⚠ Critical' : editProduct.stock_quantity < 50 ? '⚡ Low' : '✓ Good'}
+                    </span>
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button onClick={() => setEditProduct({...editProduct, stock_quantity: Math.max(0, editProduct.stock_quantity - 1)})}
+                      style={{ width: '32px', height: '32px', border: `0.5px solid ${COLORS.border}`, borderRadius: '6px', background: 'white', cursor: 'pointer', fontSize: '16px' }}>−</button>
+                    <input style={{ ...inputStyle, textAlign: 'center', width: '80px', marginBottom: 0 }} type="number"
+                      value={editProduct.stock_quantity}
+                      onChange={e => setEditProduct({...editProduct, stock_quantity: parseInt(e.target.value) || 0})} />
+                    <button onClick={() => setEditProduct({...editProduct, stock_quantity: editProduct.stock_quantity + 1})}
+                      style={{ width: '32px', height: '32px', border: `0.5px solid ${COLORS.border}`, borderRadius: '6px', background: 'white', cursor: 'pointer', fontSize: '16px' }}>+</button>
+                    <div style={{ display: 'flex', gap: '6px', marginLeft: '8px' }}>
+                      {[50, 100, 200].map(n => (
+                        <button key={n} onClick={() => setEditProduct({...editProduct, stock_quantity: editProduct.stock_quantity + n})}
+                          style={{ padding: '5px 10px', background: COLORS.green3, color: COLORS.green, border: `0.5px solid #9FE1CB`, borderRadius: '5px', fontSize: '11px', cursor: 'pointer', fontWeight: '500' }}>
+                          +{n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px', fontWeight: '500' }}>Description</label>
+                  <textarea style={{ ...inputStyle, height: '72px', resize: 'vertical' }} value={editProduct.description || ''}
+                    onChange={e => setEditProduct({...editProduct, description: e.target.value})} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', marginTop: '20px' }}>
+                <button onClick={async () => {
+                  if (window.confirm('Delete this product? This cannot be undone.')) {
+                    await supabase.from('products').update({ is_active: false }).eq('id', editProduct.id)
+                    setEditProduct(null)
+                    fetchAll()
+                  }
+                }} style={{ padding: '10px 16px', background: '#FCEBEB', color: '#791F1F', border: 'none', borderRadius: '7px', fontSize: '13px', cursor: 'pointer' }}>
+                  Delete
+                </button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setEditProduct(null)}
+                    style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                  <button onClick={async () => {
+                    await supabase.from('products').update({
+                      name: editProduct.name,
+                      category: editProduct.category,
+                      price_per_unit: parseFloat(editProduct.price_per_unit),
+                      stock_quantity: parseInt(editProduct.stock_quantity),
+                      description: editProduct.description,
+                    }).eq('id', editProduct.id)
+                    setEditProduct(null)
+                    fetchAll()
+                  }} style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+                    Save changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* CATALOG UPLOAD MODAL */}
