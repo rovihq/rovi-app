@@ -6,6 +6,8 @@ import Login from './pages/Login'
 import Subscribe from './pages/Subscribe'
 import PaymentSuccess from './pages/PaymentSuccess'
 import ResetPassword from './pages/ResetPassword'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 import SupplierDashboard from './pages/SupplierDashboard'
 import RepDashboard from './pages/RepDashboard'
 import DoctorDashboard from './pages/DoctorDashboard'
@@ -69,6 +71,8 @@ function App() {
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/" element={<RoleRedirect />} />
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/supplier" element={<PrivateRoute role="supplier"><SupplierDashboard /></PrivateRoute>} />

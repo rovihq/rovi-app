@@ -78,11 +78,16 @@ export default function Subscribe() {
   const [selectedRole, setSelectedRole] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   const plan = selectedRole ? PLANS[selectedRole] : null
 
   const handleGetStarted = async () => {
     if (!plan || !plan.priceId) return
+    if (!termsAccepted) {
+      setError('Please accept the Terms of Service and Privacy Policy to continue.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -216,9 +221,22 @@ export default function Subscribe() {
                 ))}
               </div>
 
-              <button onClick={handleGetStarted} disabled={loading}
-                style={{ padding: '16px', background: plan.color, color: plan.id === 'rep' ? 'white' : '#0D0D0B', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', opacity: loading ? 0.7 : 1, boxShadow: `0 4px 16px ${plan.color}35` }}>
-                {loading ? 'Redirecting to Stripe...' : `Get started — $${plan.price}/mo`}
+              {/* Terms checkbox */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 14px', background: COLORS.bg2, borderRadius: '8px', marginBottom: '4px' }}>
+                <input type="checkbox" id="terms" checked={termsAccepted} onChange={e => { setTermsAccepted(e.target.checked); setError('') }}
+                  style={{ marginTop: '2px', width: '15px', height: '15px', accentColor: COLORS.green, flexShrink: 0, cursor: 'pointer' }} />
+                <label htmlFor="terms" style={{ fontSize: '12px', color: COLORS.text2, lineHeight: '1.6', cursor: 'pointer' }}>
+                  I agree to Rovi's{' '}
+                  <a href="/terms" target="_blank" style={{ color: COLORS.green, fontWeight: '500' }}>Terms of Service</a>
+                  {' '}and{' '}
+                  <a href="/privacy" target="_blank" style={{ color: COLORS.green, fontWeight: '500' }}>Privacy Policy</a>.
+                  I confirm I am a licensed healthcare professional or authorized business representative.
+                </label>
+              </div>
+
+              <button onClick={handleGetStarted} disabled={loading || !termsAccepted}
+                style={{ padding: '16px', background: !termsAccepted ? '#C8C6BE' : plan.color, color: !termsAccepted ? 'white' : plan.id === 'rep' ? 'white' : '#0D0D0B', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: !termsAccepted ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', opacity: loading ? 0.7 : 1, boxShadow: termsAccepted ? `0 4px 16px ${plan.color}35` : 'none' }}>
+                {loading ? 'Redirecting to Stripe...' : `Get started → $${plan.price}/mo`}
               </button>
 
               {error && <div style={{ background: '#FCEBEB', color: '#791F1F', padding: '12px', borderRadius: '8px', fontSize: '13px' }}>{error}</div>}
