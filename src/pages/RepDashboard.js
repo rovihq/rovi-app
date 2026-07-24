@@ -6,7 +6,7 @@ import Logo from '../components/Logo'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
-  dark2: '#2C2C2A', bg: '#F7F5F0', bg2: '#F0EDE6',
+  dark2: '#2C2C2A', bg: '#F7F5F2', bg2: '#FFFFFF',
   border: '#E2E0D8', text2: '#5F5E5A', text3: '#A8A8A2',
   amber: '#EF9F27', amber2: '#FAEEDA', red: '#E24B4A',
   green3: '#E8F7F1', purple2: '#EEEDFE', purple3: '#3C3489'
@@ -47,7 +47,7 @@ function CommissionStatus({ repId }) {
       <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: '0.5px solid #E2E0D8' }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A' }}>{a.supplier?.company_name}</div>
-          <div style={{ fontSize: '11px', color: '#A8A8A2' }}>{a.period_start} → {a.period_end} · {a.total_orders} orders</div>
+          <div style={{ fontSize: '11px', color: '#A8A8A2' }}>{a.period_start} — {a.period_end} · {a.total_orders} orders</div>
           {a.payment_reference && <div style={{ fontSize: '11px', color: '#A8A8A2' }}>Ref: {a.payment_reference}</div>}
         </div>
         <div style={{ textAlign: 'right', marginRight: '10px' }}>
@@ -537,7 +537,7 @@ export default function RepDashboard() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
                     <div style={{ fontSize: '16px', fontWeight: '500', color: COLORS.dark }}>${Number(p.price_per_unit).toFixed(2)}<span style={{ fontSize: '11px', color: COLORS.text3 }}>/unit</span></div>
                     <div style={{ fontSize: '11px', color: p.stock_quantity < 20 ? COLORS.red : p.stock_quantity < 50 ? COLORS.amber : COLORS.green, fontWeight: '500' }}>
-                      {p.stock_quantity < 20 ? '⚠ Low stock' : p.stock_quantity < 50 ? '○ Limited' : '✓ In stock'}
+                      {p.stock_quantity < 20 ? '⚠ Low stock' : p.stock_quantity < 50 ? '⚡ Limited' : '✓ In stock'}
                     </div>
                   </div>
                   <button onClick={() => { setSelectedProduct(p); setShowOrderModal(true) }}
@@ -670,7 +670,7 @@ export default function RepDashboard() {
             <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '440px', maxWidth: '90vw' }}>
               {orderSuccess ? (
                 <div style={{ textAlign: 'center', padding: '20px' }}>
-                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>✓</div>
                   <div style={{ fontSize: '16px', fontWeight: '500' }}>Order placed!</div>
                   <div style={{ fontSize: '13px', color: COLORS.text2, marginTop: '6px' }}>Credited to your account automatically.</div>
                 </div>

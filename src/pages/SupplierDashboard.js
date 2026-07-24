@@ -8,7 +8,7 @@ import CatalogUpload from '../components/CatalogUpload'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
-  dark2: '#2C2C2A', bg: '#F7F5F0', bg2: '#F0EDE6',
+  dark2: '#2C2C2A', bg: '#F7F5F2', bg2: '#FFFFFF',
   border: '#E2E0D8', text2: '#5F5E5A', text3: '#A8A8A2',
   amber: '#EF9F27', amber2: '#FAEEDA', red: '#E24B4A',
   green3: '#E8F7F1', blue2: '#E6F1FB',
@@ -202,8 +202,8 @@ export default function SupplierDashboard() {
     { id: 'overview', label: 'Overview', icon: '⊞' },
     { id: 'orders', label: 'Orders', icon: '⚡', badge: orders.filter(o => o.status === 'New').length },
     { id: 'catalog', label: 'Catalog', icon: '+' },
-    { id: 'reps', label: 'Rep Performance', icon: '👥' },
-    { id: 'insights', label: 'Demand Insights', icon: '↑' },
+    { id: 'reps', label: 'Rep Performance', icon: '📊' },
+    { id: 'insights', label: 'Demand Insights', icon: '📈' },
     ...(profile?.account_tier === 'enterprise' ? [{ id: 'enterprise', label: 'Enterprise', icon: '⭐' }] : []),
     { id: 'addons', label: 'Add-ons', icon: '＋' },
     { id: 'admin', label: 'Admin', icon: '⚙' },

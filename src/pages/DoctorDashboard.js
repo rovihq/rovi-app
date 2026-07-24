@@ -6,7 +6,7 @@ import Logo from '../components/Logo'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
-  dark2: '#2C2C2A', bg: '#F7F5F0', bg2: '#F0EDE6',
+  dark2: '#2C2C2A', bg: '#F7F5F2', bg2: '#FFFFFF',
   border: '#E2E0D8', text2: '#5F5E5A', text3: '#A8A8A2',
   amber: '#EF9F27', amber2: '#FAEEDA', red: '#E24B4A',
   green3: '#E8F7F1', purple2: '#EEEDFE', purple3: '#3C3489'
@@ -141,10 +141,10 @@ export default function DoctorDashboard() {
 
   const sidebarItems = [
     { id: 'reorder', label: '⚡ Quick Reorder' },
-    { id: 'history', label: '≡ Order History' },
-    { id: 'catalog', label: '⊞ Browse Catalog' },
-    { id: 'network', label: '🔗 My Network', badge: myNetwork.length },
-    { id: 'profile', label: '◎ My Profile' },
+    { id: 'history', label: '📋 Order History' },
+    { id: 'catalog', label: '→ Browse Catalog' },
+    { id: 'network', label: '🌐 My Network', badge: myNetwork.length },
+    { id: 'profile', label: '👤 My Profile' },
   ]
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: COLORS.dark, color: COLORS.teal, fontSize: '18px' }}>Loading...</div>
@@ -330,7 +330,7 @@ export default function DoctorDashboard() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                   <div style={{ fontSize: '16px', fontWeight: '500' }}>${Number(p.price_per_unit).toFixed(2)}<span style={{ fontSize: '11px', color: COLORS.text3 }}>/unit</span></div>
                   <span style={{ fontSize: '11px', fontWeight: '500', color: p.stock_quantity < 20 ? COLORS.red : p.stock_quantity < 50 ? COLORS.amber : COLORS.green }}>
-                    {p.stock_quantity < 20 ? '⚠ Low' : p.stock_quantity < 50 ? '○ Limited' : '✓ In stock'}
+                    {p.stock_quantity < 20 ? '⚠ Low' : p.stock_quantity < 50 ? '⚡ Limited' : '✓ In stock'}
                   </span>
                 </div>
                 <button onClick={() => { setSelectedProduct(p); setShowOrderModal(true) }}
@@ -413,7 +413,7 @@ export default function DoctorDashboard() {
                               <div style={{ fontSize: '11px', color: COLORS.text3 }}>{p.category} · ${Number(p.price_per_unit).toFixed(2)}/unit</div>
                             </div>
                             <span style={{ fontSize: '11px', fontWeight: '500', color: p.stock_quantity < 20 ? COLORS.red : p.stock_quantity < 50 ? COLORS.amber : COLORS.green }}>
-                              {p.stock_quantity < 20 ? '⚠ Low' : p.stock_quantity < 50 ? '○ Limited' : '✓ In stock'}
+                              {p.stock_quantity < 20 ? '⚠ Low' : p.stock_quantity < 50 ? '⚡ Limited' : '✓ In stock'}
                             </span>
                             <button onClick={() => { setSelectedProduct(p); setSelectedRep(n.rep); setShowOrderModal(true) }}
                               style={{ padding: '6px 14px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '500', cursor: 'pointer' }}>
@@ -484,7 +484,7 @@ export default function DoctorDashboard() {
             <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
               {orderSuccess ? (
                 <div style={{ textAlign: 'center', padding: '20px' }}>
-                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>✓</div>
                   <div style={{ fontSize: '16px', fontWeight: '500' }}>Order placed!</div>
                   <div style={{ fontSize: '13px', color: COLORS.text2, marginTop: '6px' }}>Your rep has been notified.</div>
                 </div>
