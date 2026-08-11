@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { SupplierCommissionPanel } from './CommissionFilters'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -18,13 +19,8 @@ export default function EnterprisePanel({ profile }) {
   const [showAddRep, setShowAddRep] = useState(false)
   const [showCreateRep, setShowCreateRep] = useState(false)
   const [newRep, setNewRep] = useState({ full_name: '', email: '', company_name: '', territory: '', commission_rate: 8 })
-  const [showPayModal, setShowPayModal] = useState(null)
-  const [payMethod, setPayMethod] = useState('ach')
-  const [payReference, setPayReference] = useState('')
-  const [payNotes, setPayNotes] = useState('')
   const [creating, setCreating] = useState(false)
   const [createMsg, setCreateMsg] = useState('')
-  const [generatingApprovals, setGeneratingApprovals] = useState(false)
 
   useEffect(() => {
     if (profile?.id) fetchAll()
@@ -154,68 +150,6 @@ export default function EnterprisePanel({ profile }) {
         setCreating(false)
       }, 1500)
     }, 1500)
-  }
-
-  const generateMonthlyApprovals = async () => {
-    setGeneratingApprovals(true)
-    const now = new Date()
-    const periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0]
-    const periodEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]
-
-    for (const rep of reps) {
-      const { data: existing } = await supabase
-        .from('commission_approvals')
-        .select('id')
-        .eq('supplier_id', profile.id)
-        .eq('rep_id', rep.id)
-        .eq('period_start', periodStart)
-        .single()
-
-      if (!existing) {
-        await supabase.from('commission_approvals').insert({
-          supplier_id: profile.id,
-          rep_id: rep.id,
-          period_start: periodStart,
-          period_end: periodEnd,
-          total_orders: rep.totalOrders,
-          total_revenue: rep.totalRevenue,
-          commission_rate: rep.commissionRate,
-          commission_amount: rep.commission,
-          status: 'pending'
-        })
-      }
-    }
-
-    fetchAll()
-    setGeneratingApprovals(false)
-  }
-
-  const approveCommission = async (approvalId) => {
-    await supabase.from('commission_approvals').update({
-      status: 'approved',
-      approved_at: new Date().toISOString()
-    }).eq('id', approvalId)
-    fetchAll()
-  }
-
-  const markPaid = (approvalId) => {
-    setShowPayModal(approvalId)
-  }
-
-  const confirmPayment = async () => {
-    if (!showPayModal) return
-    await supabase.from('commission_approvals').update({
-      status: 'paid',
-      paid_at: new Date().toISOString(),
-      payment_method: payMethod,
-      payment_reference: payReference,
-      payment_notes: payNotes
-    }).eq('id', showPayModal)
-    setShowPayModal(null)
-    setPayMethod('ach')
-    setPayReference('')
-    setPayNotes('')
-    fetchAll()
   }
 
   const exportCSV = () => {
@@ -374,77 +308,7 @@ export default function EnterprisePanel({ profile }) {
 
       {/* COMMISSION APPROVALS */}
       {activeTab === 'commissions' && (
-        <>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center' }}>
-            <button onClick={generateMonthlyApprovals} disabled={generatingApprovals || reps.length === 0}
-              style={{ padding: '9px 16px', background: COLORS.amber, color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', opacity: reps.length === 0 ? 0.5 : 1 }}>
-              {generatingApprovals ? 'Generating...' : '⚡ Generate last month'}
-            </button>
-            <div style={{ fontSize: '12px', color: COLORS.text3 }}>Creates approval records for all reps based on last month's orders</div>
-          </div>
-
-          {approvals.length === 0 ? (
-            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '60px', textAlign: 'center', color: COLORS.text3 }}>
-              No commission approvals yet. Click "Generate last month" to create approval records.
-            </div>
-          ) : (
-            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', overflow: 'hidden' }}>
-              {approvals.map(a => {
-                const statusColor = a.status === 'paid' ? { bg: COLORS.green3, color: '#085041' } : a.status === 'approved' ? { bg: COLORS.purple2, color: COLORS.purple3 } : { bg: COLORS.amber2, color: '#633806' }
-                return (
-                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', borderBottom: `0.5px solid ${COLORS.border}` }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: COLORS.purple2, color: COLORS.purple3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '600', flexShrink: 0 }}>
-                      {a.rep?.full_name?.charAt(0)}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark, marginBottom: '2px' }}>{a.rep?.full_name}</div>
-                      <div style={{ fontSize: '11px', color: COLORS.text3 }}>{a.period_start} → {a.period_end} · {a.total_orders} orders · ${Number(a.total_revenue).toFixed(2)} revenue</div>
-                    </div>
-                    <div style={{ textAlign: 'right', marginRight: '8px' }}>
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: COLORS.amber }}>${Number(a.commission_amount).toFixed(2)}</div>
-                      <div style={{ fontSize: '10px', color: COLORS.text3 }}>{a.commission_rate}% rate</div>
-                    </div>
-                    <span style={{ background: statusColor.bg, color: statusColor.color, fontSize: '10px', fontWeight: '600', padding: '3px 9px', borderRadius: '20px', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
-                      {a.status}
-                    </span>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      {a.status === 'pending' && (
-                        <button onClick={() => approveCommission(a.id)}
-                          style={{ padding: '6px 12px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          ✓ Approve
-                        </button>
-                      )}
-                      {a.status === 'approved' && (
-                        <button onClick={() => markPaid(a.id)}
-                          style={{ padding: '6px 12px', background: COLORS.purple2, color: COLORS.purple3, border: `0.5px solid #C5C4F5`, borderRadius: '6px', fontSize: '11px', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          Mark paid
-                        </button>
-                      )}
-                      {a.status === 'paid' && (
-                        <span style={{ fontSize: '11px', color: '#085041', padding: '6px 12px' }}>✓ Paid {a.paid_at ? new Date(a.paid_at).toLocaleDateString() : ''}</span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {approvals.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginTop: '16px' }}>
-              {[
-                { label: 'Pending approval', value: `$${approvals.filter(a => a.status === 'pending').reduce((s, a) => s + Number(a.commission_amount), 0).toFixed(2)}`, color: COLORS.amber },
-                { label: 'Approved — to pay', value: `$${approvals.filter(a => a.status === 'approved').reduce((s, a) => s + Number(a.commission_amount), 0).toFixed(2)}`, color: COLORS.purple3 },
-                { label: 'Total paid', value: `$${approvals.filter(a => a.status === 'paid').reduce((s, a) => s + Number(a.commission_amount), 0).toFixed(2)}`, color: COLORS.green },
-              ].map((m, i) => (
-                <div key={i} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '9px', padding: '14px' }}>
-                  <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: m.color }}>{m.value}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+        <SupplierCommissionPanel supplierId={profile?.id} />
       )}
 
       {/* EXPORTS */}
@@ -531,36 +395,6 @@ export default function EnterprisePanel({ profile }) {
         </div>
       )}
 
-      {/* PAY MODAL */}
-      {showPayModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 700 }}>
-          <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
-            <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px' }}>Record payment</div>
-            <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>How was this commission paid?</div>
-
-            <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '5px' }}>Payment method</label>
-            <select value={payMethod} onChange={e => setPayMethod(e.target.value)} style={{ ...inputStyle, marginBottom: '12px' }}>
-              <option value="ach">ACH / Bank transfer</option>
-              <option value="check">Check</option>
-              <option value="wire">Wire transfer</option>
-              <option value="other">Other</option>
-            </select>
-
-            <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '5px' }}>Reference number (optional)</label>
-            <input style={inputStyle} placeholder="e.g. check #1234 or transaction ID" value={payReference} onChange={e => setPayReference(e.target.value)} />
-
-            <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '5px' }}>Notes (optional)</label>
-            <input style={inputStyle} placeholder="Any additional payment notes" value={payNotes} onChange={e => setPayNotes(e.target.value)} />
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <button onClick={() => setShowPayModal(null)} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-              <button onClick={confirmPayment} style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
-                ✓ Confirm payment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

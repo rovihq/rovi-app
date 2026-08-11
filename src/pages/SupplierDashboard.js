@@ -5,6 +5,7 @@ import ChatPanel from '../components/ChatPanel'
 import Logo from '../components/Logo'
 import EnterprisePanel from '../components/EnterprisePanel'
 import CatalogUpload from '../components/CatalogUpload'
+import { SupplierCommissionPanel } from '../components/CommissionFilters'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -252,10 +253,10 @@ export default function SupplierDashboard() {
       </div>
 
       {/* MAIN */}
-      <div style={{ marginLeft: '220px', flex: 1, padding: '24px' }}>
+      <div style={{ marginLeft: '220px', flex: 1 }}>
 
         {/* TOPBAR */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: 'white', borderBottom: '0.5px solid #E8E6E0', padding: '14px 24px', position: 'sticky', top: 0, zIndex: 10 }}>
           <div>
             <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>
               {activeSection === 'overview' && `Good morning, ${profile?.company_name}`}
@@ -283,6 +284,8 @@ export default function SupplierDashboard() {
             )}
           </div>
         </div>
+
+        <div style={{ padding: '24px' }}>
 
         {/* NOTIFICATIONS */}
         {showNotif && (
@@ -1016,6 +1019,8 @@ export default function SupplierDashboard() {
             </div>
           </div>
         )}
+
+        </div>
 
         <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} />
       </div>

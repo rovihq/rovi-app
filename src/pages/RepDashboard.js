@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import ChatPanel from '../components/ChatPanel'
 import Logo from '../components/Logo'
+import { RepCommissionPanel } from '../components/CommissionFilters'
 
 const COLORS = {
   green: '#0F6E56', teal: '#5DCAA5', dark: '#1C1C1A',
@@ -22,42 +23,6 @@ const DoctorStatus = ({ lastOrderDate }) => {
   if (days < 14) return <Badge label="Active" color="#085041" bg="#E8F7F1" />
   if (days < 21) return <Badge label="Follow up" color="#633806" bg="#FAEEDA" />
   return <Badge label="Overdue" color="#791F1F" bg="#FCEBEB" />
-}
-
-function CommissionStatus({ repId }) {
-  const [approvals, setApprovals] = useState([])
-  useEffect(() => {
-    if (!repId) return
-    supabase.from('commission_approvals')
-      .select('*, supplier:profiles!commission_approvals_supplier_id_fkey(company_name)')
-      .eq('rep_id', repId)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => setApprovals(data || []))
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repId])
-  if (approvals.length === 0) return <div style={{ color: '#A8A8A2', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No commission payment records yet — your supplier will generate these monthly.</div>
-  return approvals.map(a => {
-    const statusMap = {
-      pending: { bg: '#FAEEDA', color: '#633806', label: '⏳ Pending approval' },
-      approved: { bg: '#EEEDFE', color: '#3C3489', label: '✓ Approved — payment coming' },
-      paid: { bg: '#E8F7F1', color: '#085041', label: `✓ Paid via ${a.payment_method || 'bank'}` }
-    }
-    const s = statusMap[a.status] || statusMap.pending
-    return (
-      <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: '0.5px solid #E2E0D8' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A' }}>{a.supplier?.company_name}</div>
-          <div style={{ fontSize: '11px', color: '#A8A8A2' }}>{a.period_start} — {a.period_end} · {a.total_orders} orders</div>
-          {a.payment_reference && <div style={{ fontSize: '11px', color: '#A8A8A2' }}>Ref: {a.payment_reference}</div>}
-        </div>
-        <div style={{ textAlign: 'right', marginRight: '10px' }}>
-          <div style={{ fontSize: '15px', fontWeight: '600', color: '#EF9F27' }}>${Number(a.commission_amount).toFixed(2)}</div>
-          <div style={{ fontSize: '10px', color: '#A8A8A2' }}>{a.commission_rate}% rate</div>
-        </div>
-        <span style={{ background: s.bg, color: s.color, fontSize: '10px', fontWeight: '600', padding: '3px 9px', borderRadius: '20px', whiteSpace: 'nowrap' }}>{s.label}</span>
-      </div>
-    )
-  })
 }
 
 export default function RepDashboard() {
@@ -267,10 +232,10 @@ export default function RepDashboard() {
       </div>
 
       {/* MAIN */}
-      <div style={{ marginLeft: '220px', flex: 1, padding: '24px' }}>
+      <div style={{ marginLeft: '220px', flex: 1 }}>
 
         {/* TOPBAR */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: 'white', borderBottom: '0.5px solid #E8E6E0', padding: '14px 24px', position: 'sticky', top: 0, zIndex: 10 }}>
           <div>
             <div style={{ fontSize: '17px', fontWeight: '500', color: COLORS.dark }}>
               {activeSection === 'dashboard' && `${profile?.full_name}'s territory — ${profile?.territory || 'Texas'}`}
@@ -293,6 +258,8 @@ export default function RepDashboard() {
             )}
           </div>
         </div>
+
+        <div style={{ padding: '24px' }}>
 
         {/* NOTIFICATIONS */}
         {showNotif && (
@@ -587,42 +554,7 @@ export default function RepDashboard() {
 
         {/* COMMISSION */}
         {activeSection === 'commission' && (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '10px', marginBottom: '16px' }}>
-              {[
-                { label: 'Earned this month', value: `$${mtdCommission.toFixed(2)}` },
-                { label: 'From direct orders', value: `$${(directOrders.reduce((s, o) => s + Number(o.total_price), 0) * 0.08).toFixed(2)}` },
-                { label: 'Total orders value', value: `$${orders.reduce((s, o) => s + Number(o.total_price), 0).toFixed(2)}` },
-                { label: 'All time commission', value: `$${(orders.reduce((s, o) => s + Number(o.total_price), 0) * 0.08).toFixed(2)}` },
-              ].map((m, i) => (
-                <div key={i} style={{ background: 'white', borderRadius: '9px', padding: '15px', border: `0.5px solid ${COLORS.border}` }}>
-                  <div style={{ fontSize: '11px', color: COLORS.text3, marginBottom: '5px' }}>{m.label}</div>
-                  <div style={{ fontSize: '24px', fontWeight: '500', color: COLORS.dark }}>{m.value}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px' }}>
-              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>Commission by order</div>
-              {orders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: COLORS.text3 }}>No orders yet</div>
-              ) : orders.map(o => (
-                <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${COLORS.border}` }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{o.doctor?.full_name} — {o.product?.name}</div>
-                    <div style={{ fontSize: '11px', color: COLORS.text3 }}>{new Date(o.order_date).toLocaleDateString()}</div>
-                  </div>
-                  <div style={{ fontSize: '13px', color: COLORS.text2 }}>${Number(o.total_price).toFixed(2)}</div>
-                  <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.green }}>${(Number(o.total_price) * 0.08).toFixed(2)}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Commission approval status */}
-            <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '16px', marginTop: '12px' }}>
-              <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '14px' }}>Payment status from supplier</div>
-              <CommissionStatus repId={profile?.id} />
-            </div>
-          </>
+          <RepCommissionPanel repId={profile?.id} orders={orders} />
         )}
 
         {/* ADMIN */}
@@ -727,6 +659,8 @@ export default function RepDashboard() {
             </div>
           </div>
         )}
+
+        </div>
 
         <ChatPanel isOpen={showChat} onClose={() => setShowChat(false)} contacts={chatContacts} onUnreadCount={setChatUnread} />
       </div>
