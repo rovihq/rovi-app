@@ -6,6 +6,10 @@
 [functions]
   node_bundler = "esbuild"
 
+# Keep-alive ping — runs every 3 days to prevent Supabase from pausing
+[functions."keep-alive"]
+  schedule = "@every 72h"
+
 [[headers]]
   for = "/*"
   [headers.values]
