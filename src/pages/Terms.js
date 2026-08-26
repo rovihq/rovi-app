@@ -89,11 +89,16 @@ export default function Terms() {
           <P>Rovi is a software tool only and does not provide medical, legal, or regulatory advice. Users are solely responsible for ensuring their use of Rovi complies with all applicable healthcare laws and regulations, including but not limited to:</P>
           <ul style={{ paddingLeft: '20px', marginBottom: '12px' }}>
             <Li>The Health Insurance Portability and Accountability Act (HIPAA)</Li>
+            <Li>The Health Information Technology for Economic and Clinical Health Act (HITECH)</Li>
             <Li>The Drug Supply Chain Security Act (DSCSA)</Li>
             <Li>FDA regulations governing 503B outsourcing facilities</Li>
+            <Li>Texas HB 300 (Texas Medical Records Privacy Act)</Li>
             <Li>State pharmacy and medical practice laws</Li>
           </ul>
-          <P>Rovi does not transmit, store, or process Protected Health Information (PHI) as defined by HIPAA. Users are responsible for ensuring they do not submit PHI through the platform. If you believe you have submitted PHI, contact us immediately at info@rovihq.com.</P>
+          <P><strong>HIPAA Compliance:</strong> Rovi is designed as a business management platform and does not function as a Covered Entity or Business Associate under HIPAA. Rovi does not transmit, store, or process Protected Health Information (PHI) as defined under 45 C.F.R. § 160.103.</P>
+          <P><strong>PHI Prohibition:</strong> Users are expressly prohibited from submitting, uploading, or transmitting any Protected Health Information (PHI) through the Rovi platform, including but not limited to: patient names combined with health information, medical diagnoses or conditions, prescription or medication records, health insurance information, or any other individually identifiable health information. Violation of this prohibition may result in immediate account termination.</P>
+          <P>If you believe you have inadvertently submitted PHI through the platform, contact us immediately at info@rovihq.com. We will work with you to identify and delete any such information promptly.</P>
+          <P>Suppliers and healthcare providers who require a Business Associate Agreement (BAA) in connection with their use of Rovi may request one by contacting info@rovihq.com. Rovi maintains BAAs with its sub-processors including Supabase, Netlify, and Resend.</P>
         </Section>
 
         <Section title="7. Intellectual property">
