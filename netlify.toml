@@ -8,7 +8,7 @@
 
 # Keep-alive ping — runs every 3 days to prevent Supabase from pausing
 [functions."keep-alive"]
-  schedule = "@every 72h"
+  schedule = "0 0 */3 * *"
 
 [[headers]]
   for = "/*"
