@@ -7,9 +7,9 @@ const supabase = createClient(
 )
 
 const PRICE_TO_TIER = {
-  'price_1Ti1ZfKU7iCToC2TK5PyMExD': { tier: 'standard', role: 'rep' },
-  'price_1Ti1aAKU7iCToC2TMDDa2FOX': { tier: 'standard', role: 'supplier' },
-  'price_1Tk5eCKU7iCToC2TXf25iuWa': { tier: 'enterprise', role: 'supplier' },
+  'price_1Ti1ykKYDy8tFUxE9iYXGoZv': { tier: 'standard', role: 'rep' },
+  'price_1Ti1ykKYDy8tFUxE8ieumm9T': { tier: 'standard', role: 'supplier' },
+  'price_1Tjq3mKYDy8tFUxE7QJuGJ4F': { tier: 'enterprise', role: 'supplier' },
 }
 
 exports.handler = async (event) => {
