@@ -16,6 +16,13 @@ const COLORS = {
   purple2: '#EEEDFE', purple3: '#3C3489'
 }
 
+const DISTRIBUTORS = [
+  { name: 'McKesson', icon: '📦', desc: 'Order pharmaceuticals, OTC products and supplies through McKesson Connect.', url: 'https://my.mckesson.com/login-okta' },
+  { name: 'Cardinal Health', icon: '🏥', desc: 'Sign in to your Cardinal Health account to place orders and manage supply.', url: 'https://www.cardinalhealth.com/en/login.html' },
+  { name: 'Cencora', icon: '🚚', desc: 'Access Cencora (formerly AmerisourceBergen) to order and track shipments.', url: 'https://www.cencora.com/sign-in' },
+  { name: 'PCCA', icon: '⚗️', desc: 'Order compounding raw materials, equipment and supplies from PCCA.', url: 'https://www.pccarx.com/Home/SignIn' },
+]
+
 const Badge = ({ status }) => {
   const colors = {
     New: { bg: '#E8F7F1', color: '#085041' },
@@ -81,9 +88,13 @@ export default function SupplierDashboard() {
   const [newRep, setNewRep] = useState({ full_name: '', email: '', company_name: '', territory: '', commission_rate: 8 })
   const [creatingRep, setCreatingRep] = useState(false)
   const [repMsg, setRepMsg] = useState('')
+  const [quickLinks, setQuickLinks] = useState([])
+  const [showAddLink, setShowAddLink] = useState(false)
+  const [newLink, setNewLink] = useState({ label: '', url: '' })
+  const [addingLink, setAddingLink] = useState(false)
 
   useEffect(() => {
-    if (profile?.id) { fetchAll(); fetchChatContacts(); fetchRepPerformance() }
+    if (profile?.id) { fetchAll(); fetchChatContacts(); fetchRepPerformance(); fetchQuickLinks() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
 
@@ -98,6 +109,29 @@ export default function SupplierDashboard() {
     setOrders(o.data || [])
     setNotifications(n.data || [])
     setLoading(false)
+  }
+
+  const fetchQuickLinks = async () => {
+    if (!profile?.id) return
+    const { data } = await supabase.from('supplier_quick_links').select('*').eq('supplier_id', profile.id).order('created_at', { ascending: true })
+    setQuickLinks(data || [])
+  }
+
+  const addQuickLink = async () => {
+    if (!newLink.label || !newLink.url) return
+    setAddingLink(true)
+    let url = newLink.url.trim()
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url
+    await supabase.from('supplier_quick_links').insert({ supplier_id: profile.id, label: newLink.label, url })
+    setNewLink({ label: '', url: '' })
+    setShowAddLink(false)
+    setAddingLink(false)
+    fetchQuickLinks()
+  }
+
+  const deleteQuickLink = async (id) => {
+    await supabase.from('supplier_quick_links').delete().eq('id', id)
+    fetchQuickLinks()
   }
 
   const fetchChatContacts = async () => {
@@ -203,6 +237,7 @@ export default function SupplierDashboard() {
     { id: 'overview', label: 'Overview', icon: '⊞' },
     { id: 'orders', label: 'Orders', icon: '⚡', badge: orders.filter(o => o.status === 'New').length },
     { id: 'catalog', label: 'Catalog', icon: '+' },
+    { id: 'quicklinks', label: 'Quick Order', icon: '🔗' },
     { id: 'reps', label: 'Rep Performance', icon: '📊' },
     { id: 'insights', label: 'Demand Insights', icon: '📈' },
     ...(profile?.account_tier === 'enterprise' ? [{ id: 'enterprise', label: 'Enterprise', icon: '⭐' }] : []),
@@ -262,6 +297,7 @@ export default function SupplierDashboard() {
               {activeSection === 'overview' && `Good morning, ${profile?.company_name}`}
               {activeSection === 'orders' && 'Orders'}
               {activeSection === 'catalog' && 'Product Catalog'}
+              {activeSection === 'quicklinks' && 'Quick Order Links'}
               {activeSection === 'insights' && 'Demand Insights'}
               {activeSection === 'reps' && 'Rep Performance'}
               {activeSection === 'enterprise' && 'Enterprise Management'}
@@ -728,6 +764,61 @@ export default function SupplierDashboard() {
           <EnterprisePanel profile={profile} />
         )}
 
+        {/* QUICK ORDER LINKS */}
+        {activeSection === 'quicklinks' && (
+          <>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', color: COLORS.text3 }}>Jump straight to your ordering accounts with major distributors, or add your own.</div>
+            </div>
+
+            <div style={{ fontSize: '11px', fontWeight: '500', color: COLORS.text3, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>Distributors</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '26px' }}>
+              {DISTRIBUTORS.map((d) => (
+                <div key={d.name} style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ fontSize: '24px', marginBottom: '12px' }}>{d.icon}</div>
+                  <div style={{ fontSize: '15px', fontWeight: '500', color: COLORS.dark, marginBottom: '6px' }}>{d.name}</div>
+                  <div style={{ fontSize: '13px', color: COLORS.text3, marginBottom: '16px', lineHeight: '1.5', flex: 1 }}>{d.desc}</div>
+                  <a href={d.url} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'block', textAlign: 'center', padding: '10px', background: COLORS.green, color: 'white', borderRadius: '7px', fontSize: '13px', fontWeight: '500', textDecoration: 'none' }}>
+                    Go to portal →
+                  </a>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{ fontSize: '11px', fontWeight: '500', color: COLORS.text3, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Your links</div>
+              <button onClick={() => setShowAddLink(true)}
+                style={{ padding: '7px 14px', background: COLORS.bg2, color: COLORS.text2, border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                + Add link
+              </button>
+            </div>
+            {quickLinks.length === 0 ? (
+              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', padding: '30px', textAlign: 'center', color: COLORS.text3, fontSize: '13px' }}>
+                No custom links yet. Add a preferred supplier, raw-material vendor, or any other ordering account you use often.
+              </div>
+            ) : (
+              <div style={{ background: 'white', border: `0.5px solid ${COLORS.border}`, borderRadius: '10px', overflow: 'hidden' }}>
+                {quickLinks.map((l, i) => (
+                  <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 18px', borderBottom: i < quickLinks.length - 1 ? `0.5px solid ${COLORS.border}` : 'none' }}>
+                    <span style={{ fontSize: '16px' }}>🔗</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: '500', color: COLORS.dark }}>{l.label}</div>
+                      <div style={{ fontSize: '11px', color: COLORS.text3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.url}</div>
+                    </div>
+                    <a href={l.url} target="_blank" rel="noopener noreferrer"
+                      style={{ padding: '7px 14px', background: COLORS.green3, color: COLORS.green, border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '500', textDecoration: 'none' }}>
+                      Open →
+                    </a>
+                    <button onClick={() => deleteQuickLink(l.id)}
+                      style={{ width: '28px', height: '28px', borderRadius: '50%', border: `0.5px solid ${COLORS.border}`, background: 'white', cursor: 'pointer', fontSize: '14px', color: COLORS.text3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
         {/* ADD-ONS */}
         {activeSection === 'addons' && (
           <>
@@ -1014,6 +1105,27 @@ export default function SupplierDashboard() {
                 <button onClick={createAndConnectRep} disabled={creatingRep || !newRep.email || !newRep.full_name}
                   style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
                   {creatingRep ? 'Creating...' : 'Create rep'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ADD QUICK LINK MODAL */}
+        {showAddLink && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(28,28,26,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 700 }}>
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', width: '420px', maxWidth: '90vw' }}>
+              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '6px' }}>Add a quick order link</div>
+              <div style={{ fontSize: '13px', color: COLORS.text2, marginBottom: '20px' }}>Add a link to any ordering account you use often — a supplier, raw-material vendor, or equipment provider.</div>
+              <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px' }}>Label</label>
+              <input style={inputStyle} placeholder="e.g. PCCA — raw materials" value={newLink.label} onChange={e => setNewLink({...newLink, label: e.target.value})} />
+              <label style={{ fontSize: '11px', color: COLORS.text3, display: 'block', marginBottom: '4px' }}>Link</label>
+              <input style={inputStyle} placeholder="e.g. mysupplier.com/login" value={newLink.url} onChange={e => setNewLink({...newLink, url: e.target.value})} />
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button onClick={() => { setShowAddLink(false); setNewLink({ label: '', url: '' }) }} style={{ padding: '10px 20px', border: `0.5px solid ${COLORS.border}`, borderRadius: '7px', background: 'white', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+                <button onClick={addQuickLink} disabled={addingLink || !newLink.label || !newLink.url}
+                  style={{ padding: '10px 20px', background: COLORS.green, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+                  {addingLink ? 'Adding...' : 'Add link'}
                 </button>
               </div>
             </div>
